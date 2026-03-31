@@ -1,0 +1,1630 @@
+print("\n\n\n")
+VERSION_NUMBER = "00053"
+VERSION_PREFIX = "i"
+COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
+COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
+COLOR_BUTTON_BACKGROUND = Color3.fromRGB(50, 50, 50)
+COLOR_BUTTON_BORDER = Color3.fromRGB(10, 10, 10)
+COLOR_TEXT_NORMAL = Color3.fromRGB(200, 200, 200)
+COLOR_TEXT_OVERLAY = Color3.fromRGB(100, 100, 100)
+COLOR_TEXT_ENABLE = Color3.fromRGB(255, 255, 0)
+COLOR_TEXT_FULLWHITE = Color3.fromRGB(255, 255, 255)
+COLOR_TEXT_RED = Color3.fromRGB(255, 100, 100)
+COLOR_TEXT_GREEN = Color3.fromRGB(100, 255, 100)
+COLOR_TEXT_YELLOW = Color3.fromRGB(255, 255, 100)
+
+local function Missing(expectedtype: string, value: any, fallback: any)
+    if type(value) == expectedtype then
+        return value
+    end
+    return (type(fallback) == expectedtype) and fallback or nil
+end
+
+local function CreateAPI(name: string, fallback: any, ...)
+    local args = {...}
+    local api = Missing("function", unpack(args), fallback)
+    if not api then
+        log("API 未就绪：" .. name .. " (后台重试中)", "warning")
+        task.spawn(function()
+            local retries = 0
+            repeat
+                task.wait(2 ^ retries)
+                retries += 1
+                api = Missing("function", unpack(args), fallback)
+            until api or retries > 5
+            if api then
+                log("API 已就绪：" .. name)
+            else
+                log("API 永久失败：" .. name, "error")
+            end
+        end)
+    end
+    return function(...)
+        if not api then
+            log("调用未就绪 API: " .. name .. " (丢弃调用)", "warning")
+            return nil, "NOT_READY"
+        end
+        local success, result = pcall(api, ...)
+        if not success then
+            local cleanError = tostring(result)
+                :gsub("stack traceback:.+", "")
+                :gsub("%s+", " ")
+                :gsub("^%s+", "")
+                :gsub("%s+$", "")
+            log("API 崩溃@" .. name .. ": " .. cleanError, "error")
+            return nil, "API_ERROR"
+        end
+        return result
+    end
+end
+
+local function CreateAsyncValue(initialvalue, loader, maxretries, basedelay)
+    maxretries = maxretries or 100
+    basedelay = basedelay or 0.3
+    local value = initialvalue
+    task.spawn(function()
+        for retries = 1, maxretries do
+            local newvalue = loader()
+            if newvalue ~= nil then
+                value = newvalue
+                break
+            end
+            if retries < maxretries then
+                task.wait(basedelay)
+            end
+        end
+        if value == initialvalue then
+            log("值加载超时：" .. tostring(initialvalue), "warning")
+        end
+    end)
+    return setmetatable({}, {
+        __call = function() return value end,
+        __index = function(_, key)
+            return value and value[key]
+        end
+    })
+end
+
+Services = setmetatable({}, {
+    __index = function(self, name: string)
+        local success, service = pcall(function()
+            return Cloneref(game:GetService(name))
+        end)
+        if success then
+            rawset(self, name, service)
+            return service
+        end
+        log("服务加载失败：" .. name .. " (后台重试)", "warning")
+        local proxy = setmetatable({}, {
+            __index = function(_, key)
+                log("访问未就绪服务：" .. name .. "." .. key .. " (返回空函数)", "warning")
+                return function() end
+            end,
+            __call = function()
+                log("尝试调用未就绪服务：" .. name .. " (已丢弃)", "warning")
+                return nil, "SERVICE_NOT_READY"
+            end
+        })
+        rawset(self, name, proxy)
+        task.spawn(function()
+            local retries = 0
+            repeat
+                task.wait(1 + retries * 0.5)
+                retries += 1
+                success, service = pcall(function()
+                    return game:GetService(name)
+                end)
+            until success or retries > 10
+            if success then
+                service = Cloneref(service)
+                rawset(self, name, service)
+                log("服务已就绪：" .. name)
+            else
+                log("服务永久失败：" .. name, "error")
+            end
+        end)
+        return proxy
+    end
+})
+
+Cloneref = CreateAPI("Cloneref", function(v) return v end, cloneref)
+Queueteleport = CreateAPI("Queueteleport", function() end,
+    queue_on_teleport,
+    getrenv and getrenv().queue_on_teleport,
+    syn and syn.queue_on_teleport
+)
+Httprequest = CreateAPI("Httprequest", function() return {Body="", StatusCode=404} end,
+    request,
+    getrenv and getrenv().http_request,
+    syn and syn.request,
+    http and http.request,
+    fluxus and fluxus.request
+)
+Everyclipboard = CreateAPI("Everyclipboard", function() end,
+    setclipboard,
+    toclipboard,
+    set_clipboard,
+    Clipboard and Clipboard.set
+)
+Waxwritefile, Waxreadfile = writefile, readfile
+Waxisfile, Waxmakefolder, Waxisfolder = isfile, makefolder, isfolder
+Writefile = Waxwritefile and function(file: string, data: string, safe: boolean?)
+    local dir = file:match("(.-)[^\\/]+$")
+    if dir and dir ~= "" and dir ~= "." and (not Waxisfolder or not Waxisfolder(dir)) then
+        if Waxmakefolder then
+            local ok = pcall(Waxmakefolder, dir)
+            if not ok and Waxisfolder and not Waxisfolder(dir) then
+                log("无法创建目录：" .. dir, "error")
+            end
+        end
+    end
+    if safe then
+        return pcall(Waxwritefile, file, data)
+    end
+    Waxwritefile(file, data)
+    return true
+end or function() return false, "NO_WRITE_API" end
+Readfile = Waxreadfile and function(file: string, safe: boolean?)
+    if safe then
+        return pcall(Waxreadfile, file)
+    end
+    return Waxreadfile(file)
+end or function() return "", "NO_READ_API" end
+Isfile = Waxisfile or function(file: string)
+    if Waxreadfile then
+        local success, content = pcall(Waxreadfile, file)
+        return success and content ~= nil and content ~= ""
+    end
+    return false
+end
+Makefolder = Waxmakefolder and function(path: string)
+    return pcall(Waxmakefolder, path)
+end or function() return true, "NO_MAKEFOLDER_API" end
+Isfolder = Waxisfolder or function(path)
+    if Waxlistfiles then
+        return table.find(Waxlistfiles(path:match("(.*/)") or "./"), "__dir_marker") ~= nil
+    end
+    return false
+end
+Waxgetcustomasset = CreateAPI("Waxgetcustomasset", function() return "" end,
+    getcustomasset,
+    getsynasset
+)
+Workspace = Services.Workspace
+CoreGui = Services.CoreGui
+Players = Services.Players
+UserInputService = Services.UserInputService
+ContextActionService = Services.ContextActionService
+TweenService = Services.TweenService
+HttpService = Services.HttpService
+RunService = Services.RunService
+TeleportService = Services.TeleportService
+StarterGui = Services.StarterGui
+GuiService = Services.GuiService
+Lighting = Services.Lighting
+ReplicatedStorage = Services.ReplicatedStorage
+GroupService = Services.GroupService
+PathService = Services.PathfindingService
+SoundService = Services.SoundService
+Teams = Services.Teams
+StarterPlayer = Services.StarterPlayer
+MaterialService = Services.MaterialService
+TextService = Services.TextService
+TextChatService = Services.TextChatService
+VoiceChatService = Services.VoiceChatService
+LogService = Services.LogService
+Stats = Services.Stats
+Localcam = Workspace.Camera
+Localplayer = CreateAsyncValue(nil, function()
+    return Players and Players.LocalPlayer
+end, 20, 0.1)
+Localchar = CreateAsyncValue(nil, function()
+    return Players.LocalPlayer and Players.LocalPlayer.Character
+end, 20, 0.1)
+Localhum = CreateAsyncValue(nil, function()
+    local player = Players.LocalPlayer
+    if not player then return nil end
+    local character = player.Character
+    if not character then return nil end
+    return character:FindFirstChildOfClass("Humanoid")
+end, 20, 0.1)
+Localroot = CreateAsyncValue(nil, function()
+    local player = Players.LocalPlayer
+    if not player then return nil end
+    local character = player.Character
+    if not character then return nil end
+    return character:FindFirstChild("HumanoidRootPart")
+end, 20, 0.1)
+Localmouse = UserInputService:GetMouseLocation()
+
+local ConsoleConfig = { 
+    debuglogs = true,      
+    showoutput = true,
+    showwarn = true,
+    showerror = true,
+    maxmessages = 500,       
+    filterkeywords = {}     
+}
+
+local Scroll_ConsoleOutput
+
+local function AddConsoleMessage(text, messagetype, sourcescript)
+    if not Scroll_ConsoleOutput or not Scroll_ConsoleOutput.Parent then
+        return
+    end
+    for _, keyword in ipairs(ConsoleConfig.filterkeywords) do
+        if text:find(keyword, 1, true) then
+            return
+        end
+    end
+    local textlabel = Instance.new("TextLabel")
+    local timestamp = os.date("%H:%M:%S")
+    if not text then return "" end
+    local escapedtext = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    local typelabel = "INFO"
+    local timestampcolor = "#C8C8C8"
+    local contentcolor = COLOR_TEXT_NORMAL
+    if messagetype == "error" then
+        typelabel = "ERROR"
+        timestampcolor = "#FF6464"
+        contentcolor = COLOR_TEXT_RED
+    elseif messagetype == "warning" then
+        typelabel = "WARN"
+        timestampcolor = "#FFFF64"
+        contentcolor = COLOR_TEXT_YELLOW
+    end
+    
+    textlabel:SetAttribute("MessageType", typelabel)
+    
+    local r = math.floor(contentcolor.R * 255)
+    local g = math.floor(contentcolor.G * 255)
+    local b = math.floor(contentcolor.B * 255)
+    local colorhex = string.format("%02X%02X%02X", r, g, b)
+    local sourcecolor = "#888888"
+    if sourcescript == "NVI" then
+        sourcecolor = "#00FF88"
+    elseif sourcescript then
+        sourcecolor = "#FFAA00"
+    end
+    textlabel.RichText = true
+    local logprefix = string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
+    local messagetext
+    if sourcescript then
+        messagetext = string.format(
+            '%s <font color="%s">[%s]</font> <font color="#%s">%s</font>',
+            logprefix, sourcecolor, sourcescript, colorhex, escapedtext
+        )
+    else
+        messagetext = string.format(
+            '%s <font color="#%s">%s</font>',
+            logprefix, colorhex, escapedtext
+        )
+    end
+    textlabel.Text = messagetext
+    textlabel.TextSize = 14
+    textlabel.Font = Enum.Font.Code
+    textlabel.BackgroundTransparency = 1
+    textlabel.TextXAlignment = Enum.TextXAlignment.Left
+    textlabel.TextYAlignment = Enum.TextYAlignment.Top
+    textlabel.TextWrapped = true
+    textlabel.ClipsDescendants = false
+    textlabel.AutomaticSize = Enum.AutomaticSize.Y
+    textlabel.Size = UDim2.new(1, -10, 0, 15)
+    textlabel.Parent = Scroll_ConsoleOutput
+    local children = Scroll_ConsoleOutput:GetChildren()
+    local labelcount = 0
+    for _, child in ipairs(children) do
+        if child:IsA("TextLabel") then
+            labelcount += 1
+        end
+    end
+    if labelcount > ConsoleConfig.maxmessages then
+        local oldestlabel = children[1]
+        if oldestlabel and oldestlabel:IsA("TextLabel") then
+            oldestlabel:Destroy()
+        end
+    end
+end
+
+local function RefreshConsoleDisplay()
+    if not Scroll_ConsoleOutput then return end
+    for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local msgtype = child:GetAttribute("MessageType") or "INFO"
+            if msgtype == "ERROR" then
+                child.Visible = ConsoleConfig.showerror
+            elseif msgtype == "WARN" then
+                child.Visible = ConsoleConfig.showwarn
+            else
+                child.Visible = ConsoleConfig.showoutput
+            end
+        end
+    end
+end
+
+local function log(text, messagetype)
+    if not ConsoleConfig.debuglogs then return end
+
+    local mtype = messagetype or "normal"
+
+    if mtype == "normal" and not ConsoleConfig.showoutput then return end
+    if mtype == "warning" and not ConsoleConfig.showwarn then return end
+    if mtype == "error" and not ConsoleConfig.showerror then return end
+    
+    if mtype == "error" or mtype == "warning" then
+        warn("[NVI]", text)
+    else
+        print("[NVI]", text)
+    end
+    AddConsoleMessage(text, mtype, "NVI")
+end
+
+local NavigationHistoryConfig = {
+    maxhistory = 50,
+    nowindex = 0,
+    history = {}
+}
+
+local NavigationHistory = NavigationHistoryConfig 
+
+local NavigationHistoryConfig = {
+    maxhistory = 50,
+    nowindex = 0,
+    history = {}
+}
+local NavigationHistory = NavigationHistoryConfig
+
+function NavigationHistory:Push(entry)
+    if self.nowindex < #self.history then
+        for i = #self.history, self.nowindex + 1, -1 do
+            table.remove(self.history, i)
+        end
+    end
+    if self.history[self.nowindex] == entry then return end
+    table.insert(self.history, entry)
+    self.nowindex = #self.history
+end
+
+function NavigationHistory:Back()
+    if self.nowindex <= 1 then
+        log("没有更早的导航历史了", "warning")
+        return nil
+    end
+    self.nowindex -= 1
+    return self.history[self.nowindex]
+end
+
+function NavigationHistory:Enter()
+    if self.nowindex >= #self.history then
+        log("没有更晚的导航历史了", "warning")
+        return nil
+    end
+    self.nowindex += 1
+    return self.history[self.nowindex]
+end
+
+guistauts, dragstauts = "active", true
+
+local function DestroyNvi()
+    if guistauts == "destroy" then return end
+    guistauts = "destroy"
+    log("开始销毁...")
+    if CoreGui:FindFirstChild("NVIScreenGui") then
+        CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
+        ScreenGui = nil
+    end
+    log("GUI 已销毁")
+end
+
+local function GetTextWidth(text)
+    if text == "" then return end
+    local size = TextService:GetTextSize(text, 15, Enum.Font.Code, Vector2.new(10000, 1000))
+    return size.X
+end
+
+local function GetCustomAsset(assetpath)
+    if cachedassetpaths[assetpath] then
+        return cachedassetpaths[assetpath]
+    end
+    if type(failedassets) == "table" then
+        for _, failedpath in ipairs(failedassets) do
+            if failedpath == assetpath then
+                return nil
+            end
+        end
+    end
+    if Waxgetcustomasset then
+        local success, result = pcall(function()
+            return Waxgetcustomasset(assetpath)
+        end)
+        if success and result and result ~= "" then
+            cachedassetpaths[assetpath] = result
+            return result
+        end
+    end
+    if assetsdownloaded then
+        return nil
+    end
+    local waitstart = tick()
+    while not assetsdownloaded do
+        if tick() - waitstart > 10 then
+            log("资源等待超时：" .. assetpath, "error")
+            return nil
+        end
+        task.wait(0.1)
+    end
+    if Waxgetcustomasset then
+        local success, result = pcall(function()
+            return Waxgetcustomasset(assetpath)
+        end)
+        if success and result and result ~= "" then
+            cachedassetpaths[assetpath] = result
+            return result
+        end
+    end
+    return nil
+end
+
+if CoreGui:FindFirstChild("NVIScreenGui") then
+    existversion = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version") and CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version").Value or 99999
+    existprefix = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version") and CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Prefix") or "Unknown"
+    existnumber = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version") and CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Number") or "Unknown"
+    if tonumber(VERSION_NUMBER) >= tonumber(existversion) then
+        log("检测到旧版或错误版本 NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")，正在清理...", "warning")
+        CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
+        log("已销毁，继续注入当前版本... NVI (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")")
+    else
+        log("已存在相同或更新版本 (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")，放弃注入当前版本 (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")", "warning")
+        return
+    end
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NVIScreenGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+ScreenGui.Parent = CoreGui
+
+local Version = Instance.new("NumberValue")
+Version.Name = "Version"
+Version.Value = VERSION_NUMBER
+Version.Parent = ScreenGui
+Version:SetAttribute("Prefix", VERSION_PREFIX)
+Version:SetAttribute("Number", VERSION_NUMBER)
+Version:SetAttribute("Status", guistauts)
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "GuiMainFrame"
+MainFrame.BackgroundColor3 = COLOR_GUI_BACKGROUND
+MainFrame.Size = UDim2.new(0, 900, 0, 600)
+MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
+MainFrame.Visible = true
+MainFrame.BackgroundTransparency = 0.15
+MainFrame.Parent = ScreenGui
+
+local Corner_MainFrame = Instance.new("UICorner")
+Corner_MainFrame.CornerRadius = UDim.new(0, 7)
+Corner_MainFrame.Parent = MainFrame
+
+local Stroke_MainFrame = Instance.new("UIStroke")
+Stroke_MainFrame.Color = COLOR_GUI_BORDER
+Stroke_MainFrame.Thickness = 3
+Stroke_MainFrame.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke_MainFrame.Parent = MainFrame
+
+local CrossLine_1 = Instance.new("Frame")
+CrossLine_1.Name = "CrossLine_1"
+CrossLine_1.BackgroundColor3 = COLOR_GUI_BORDER
+CrossLine_1.BorderSizePixel = 0
+CrossLine_1.Size = UDim2.new(1, 0, 0, 3)
+CrossLine_1.Position = UDim2.new(0, 0, 0, 29)
+CrossLine_1.Parent = MainFrame
+
+local CrossLine_2 = Instance.new("Frame")
+CrossLine_2.Name = "CrossLine_2"
+CrossLine_2.BackgroundColor3 = COLOR_GUI_BORDER
+CrossLine_2.BorderSizePixel = 0
+CrossLine_2.Size = UDim2.new(0, 3, 1, -31)
+CrossLine_2.Position = UDim2.new(0.2, 0, 0, 31)
+CrossLine_2.Parent = MainFrame
+
+local CrossLine_3 = Instance.new("Frame")
+CrossLine_3.Name = "CrossLine_3"
+CrossLine_3.BackgroundColor3 = COLOR_GUI_BORDER
+CrossLine_3.BorderSizePixel = 0
+CrossLine_3.Size = UDim2.new(0.8, 0, 0, 3)
+CrossLine_3.Position = UDim2.new(0.2, 0, 0, 55)
+CrossLine_3.Parent = MainFrame
+
+local CrossLine_4 = Instance.new("Frame")
+CrossLine_4.Name = "CrossLine_4"
+CrossLine_4.BackgroundColor3 = COLOR_GUI_BORDER
+CrossLine_4.BorderSizePixel = 0
+CrossLine_4.Size = UDim2.new(0, 3, 0, 26)
+CrossLine_4.Position = UDim2.new(0.7, 0, 0, 31)
+CrossLine_4.Parent = MainFrame
+
+local CrossLine_5 = Instance.new("Frame")
+CrossLine_5.Name = "CrossLine_5"
+CrossLine_5.BackgroundColor3 = COLOR_GUI_BORDER
+CrossLine_5.BorderSizePixel = 0
+CrossLine_5.Size = UDim2.new(0.2, 0, 0, 3)
+CrossLine_5.Position = UDim2.new(0, 0, 0, 55)
+CrossLine_5.Parent = MainFrame
+
+local Area_Sidebar = Instance.new("Frame")
+Area_Sidebar.Name = "Area_Sidebar"
+Area_Sidebar.BackgroundTransparency = 1
+Area_Sidebar.BorderSizePixel = 0
+Area_Sidebar.Size = UDim2.new(0.2, 0, 0, 26)
+Area_Sidebar.Position = UDim2.new(0, 0, 0, 30)
+Area_Sidebar.Parent = MainFrame
+
+local Button_Back = Instance.new("TextButton")
+Button_Back.Name = "Button_Back"
+Button_Back.Text = "<-"
+Button_Back.Font = Enum.Font.Code
+Button_Back.TextColor3 = COLOR_TEXT_NORMAL
+Button_Back.TextSize = 14
+Button_Back.BackgroundTransparency = 1
+Button_Back.BorderSizePixel = 0
+Button_Back.Size = UDim2.new(0, 90, 0.99, 0)
+Button_Back.Position = UDim2.new(0, 0, 0, 1)
+Button_Back.Parent = Area_Sidebar
+
+local Stroke_Button_Back = Instance.new("UIStroke")
+Stroke_Button_Back.Color = COLOR_GUI_BORDER
+Stroke_Button_Back.Thickness = 2
+Stroke_Button_Back.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke_Button_Back.Parent = Button_Back
+
+local Button_Enter = Instance.new("TextButton")
+Button_Enter.Name = "Button_Enter"
+Button_Enter.Text = "->"
+Button_Enter.Font = Enum.Font.Code
+Button_Enter.TextColor3 = COLOR_TEXT_NORMAL
+Button_Enter.TextSize = 14
+Button_Enter.BackgroundTransparency = 1
+Button_Enter.BorderSizePixel = 0
+Button_Enter.Size = UDim2.new(0, 90, 0.99, 0)
+Button_Enter.Position = UDim2.new(0, 90, 0, 1)
+Button_Enter.Parent = Area_Sidebar
+
+local Stroke_Button_Enter = Instance.new("UIStroke")
+Stroke_Button_Enter.Color = COLOR_GUI_BORDER
+Stroke_Button_Enter.Thickness = 2
+Stroke_Button_Enter.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke_Button_Enter.Parent = Button_Enter
+
+local Area_Module = Instance.new("Frame")
+Area_Module.Name = "Area_Module"
+Area_Module.BackgroundTransparency = 1
+Area_Module.BorderSizePixel = 0
+Area_Module.Size = UDim2.new(0.2, 0, 1, -56)
+Area_Module.Position = UDim2.new(0, 0, 0, 56)
+Area_Module.Parent = MainFrame
+
+local Area_Config = Instance.new("Frame")
+Area_Config.Name = "Area_Config"
+Area_Config.BackgroundTransparency = 1
+Area_Config.BorderSizePixel = 0
+Area_Config.Size = UDim2.new(0.8, -3, 1, -57)
+Area_Config.Position = UDim2.new(0.2, 3, 0, 57)
+Area_Config.Parent = MainFrame
+
+local Area_Info = Instance.new("Frame")
+Area_Info.Name = "Area_Info"
+Area_Info.BackgroundTransparency = 1
+Area_Info.BorderSizePixel = 0
+Area_Info.Size = UDim2.new(1, 0, 1, 0)
+Area_Info.Position = UDim2.new(0, 0, 0, 0)
+Area_Info.Visible = true
+Area_Info.Parent = Area_Config
+
+local Area_Console = Instance.new("Frame")
+Area_Console.Name = "Area_Console"
+Area_Console.BackgroundTransparency = 1
+Area_Console.BorderSizePixel = 0
+Area_Console.Size = UDim2.new(1, 0, 1, 0)
+Area_Console.Position = UDim2.new(0, 0, 0, 0)
+Area_Console.Visible = false
+Area_Console.Parent = Area_Config
+
+local Area_ConsoleInput = Instance.new("Frame")
+Area_ConsoleInput.Name = "Area_ConsoleInput"
+Area_ConsoleInput.Size = UDim2.new(0.99, 0, 0, 25)
+Area_ConsoleInput.Position = UDim2.new(0.005, 0, 0.95, 0)
+Area_ConsoleInput.BackgroundColor3 = COLOR_GUI_BACKGROUND
+Area_ConsoleInput.BackgroundTransparency = 0.8
+Area_ConsoleInput.BorderColor3 = COLOR_BUTTON_BORDER
+Area_ConsoleInput.Parent = Area_Console
+
+Area_ConsoleInput.MouseEnter:Connect(function()
+    if guistauts == "destroy" then return end
+    dragstauts = false
+end)
+
+Area_ConsoleInput.MouseLeave:Connect(function()
+    if guistauts == "destroy" then return end
+    dragstauts = true
+end)
+
+local TextBox_ConsoleInput = Instance.new("TextBox")
+TextBox_ConsoleInput.Name = "TextBox_ConsoleInput"
+TextBox_ConsoleInput.Size = UDim2.new(0.95, 0, 0, 25)
+TextBox_ConsoleInput.Position = UDim2.new(0.025, 0, 0, 0)
+TextBox_ConsoleInput.BackgroundTransparency = 1
+TextBox_ConsoleInput.BorderSizePixel = 0
+TextBox_ConsoleInput.Font = Enum.Font.Code
+TextBox_ConsoleInput.PlaceholderColor3 = COLOR_TEXT_NORMAL
+TextBox_ConsoleInput.PlaceholderText = "> 在这里输入命令..."
+TextBox_ConsoleInput.TextColor3 = COLOR_TEXT_NORMAL
+TextBox_ConsoleInput.Text = ""
+TextBox_ConsoleInput.TextSize = 12
+TextBox_ConsoleInput.TextXAlignment = Enum.TextXAlignment.Left
+TextBox_ConsoleInput.TextWrapped = false
+TextBox_ConsoleInput.ClearTextOnFocus = false
+TextBox_ConsoleInput.ClipsDescendants = true
+TextBox_ConsoleInput.MaxVisibleGraphemes = 200
+TextBox_ConsoleInput.Parent = Area_ConsoleInput
+
+Area_ConsoleOutput = Instance.new("Frame")
+Area_ConsoleOutput.Name = "Area_ConsoleOutput"
+Area_ConsoleOutput.BackgroundColor3 = COLOR_GUI_BACKGROUND
+Area_ConsoleOutput.BackgroundTransparency = 0.8
+Area_ConsoleOutput.BorderColor3 = COLOR_BUTTON_BORDER
+Area_ConsoleOutput.Size = UDim2.new(0.99, 0, 0, 480)
+Area_ConsoleOutput.Position = UDim2.new(0.005, 0, 0, 35)
+Area_ConsoleOutput.Parent = Area_Console
+
+Scroll_ConsoleOutput = Instance.new("ScrollingFrame")
+Scroll_ConsoleOutput.Name = "Scroll_ConsoleOutput"
+Scroll_ConsoleOutput.Size = UDim2.new(1, 0, 0, 470)
+Scroll_ConsoleOutput.Position = UDim2.new(0, 0, 0, 10)
+Scroll_ConsoleOutput.BackgroundTransparency = 1
+Scroll_ConsoleOutput.BorderSizePixel = 0
+Scroll_ConsoleOutput.ScrollBarThickness = 9
+Scroll_ConsoleOutput.ScrollBarImageTransparency = 0.5
+Scroll_ConsoleOutput.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll_ConsoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
+Scroll_ConsoleOutput.Parent = Area_ConsoleOutput
+
+Area_ConsoleSettings = Instance.new("Frame")
+Area_ConsoleSettings.Name = "Area_ConsoleSettings"
+Area_ConsoleSettings.BackgroundColor3 = COLOR_GUI_BACKGROUND
+Area_ConsoleSettings.BackgroundTransparency = 0.8
+Area_ConsoleSettings.BorderColor3 = COLOR_BUTTON_BORDER
+Area_ConsoleSettings.Size = UDim2.new(0.99, 0, 0, 30)
+Area_ConsoleSettings.Position = UDim2.new(0.005, 0, 0, 5)
+Area_ConsoleSettings.Parent = Area_Console
+
+local UIList_ConsoleSetting = Instance.new("UIListLayout")
+UIList_ConsoleSetting.Name = "UIList_ConsoleSetting"
+UIList_ConsoleSetting.SortOrder = Enum.SortOrder.LayoutOrder
+UIList_ConsoleSetting.FillDirection = Enum.FillDirection.Horizontal
+UIList_ConsoleSetting.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIList_ConsoleSetting.VerticalAlignment = Enum.VerticalAlignment.Center
+UIList_ConsoleSetting.Padding = UDim.new(0, 30)
+UIList_ConsoleSetting.Parent = Area_ConsoleSettings
+
+local UIListLayout_Console = Instance.new("UIListLayout")
+UIListLayout_Console.Name = "UIListLayout_Console"
+UIListLayout_Console.Padding = UDim.new(0, 2)
+UIListLayout_Console.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
+UIListLayout_Console.Parent = Scroll_ConsoleOutput
+
+Scroll_ConsoleOutput.MouseEnter:Connect(function()
+    if guistauts == "destroy" then return end
+    dragstauts = false
+end)
+Scroll_ConsoleOutput.MouseLeave:Connect(function()
+    if guistauts == "destroy" then return end
+    dragstauts = true
+end)
+
+local Area_Settings = Instance.new("Frame")
+Area_Settings.Name = "Area_Settings"
+Area_Settings.BackgroundTransparency = 1
+Area_Settings.BorderSizePixel = 0
+Area_Settings.Size = UDim2.new(1, 0, 1, 0)
+Area_Settings.Position = UDim2.new(0, 0, 0, 0)
+Area_Settings.Visible = false
+Area_Settings.Parent = Area_Config
+
+Scroll_Settings = Instance.new("ScrollingFrame")
+Scroll_Settings.Name = "Scroll_Settings"
+Scroll_Settings.Size = UDim2.new(1, 0, 1, 0)
+Scroll_Settings.Position = UDim2.new(0, 0, 0, 0)
+Scroll_Settings.BackgroundTransparency = 1
+Scroll_Settings.BorderSizePixel = 0
+Scroll_Settings.ScrollBarThickness = 9
+Scroll_Settings.ScrollBarImageTransparency = 0.5
+Scroll_Settings.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Scroll_Settings.CanvasSize = UDim2.new(0, 0, 0, 0)
+Scroll_Settings.Parent = Area_Settings
+
+local Area_Title = Instance.new("Frame")
+Area_Title.Name = "Area_Title"
+Area_Title.BackgroundTransparency = 1
+Area_Title.BorderSizePixel = 0
+Area_Title.Size = UDim2.new(1, 0, 0, 29)
+Area_Title.Position = UDim2.new(0, 0, 0, 0)
+Area_Title.Visible = true
+Area_Title.Parent = MainFrame
+
+local Text_Info = Instance.new("TextLabel")
+Text_Info.Name = "Info_Display"
+Text_Info.Text = "FPS: -- | Ping: --ms | CPU: --% | Position: (X:? Y:? Z:?)"
+Text_Info.RichText = true
+Text_Info.TextColor3 = COLOR_TEXT_NORMAL
+Text_Info.TextSize = 14
+Text_Info.Font = Enum.Font.Code
+Text_Info.BackgroundTransparency = 1
+Text_Info.Size = UDim2.new(1, 0, 1, 0)
+Text_Info.Position = UDim2.new(0, 0, 0, 0)
+Text_Info.TextXAlignment = Enum.TextXAlignment.Center
+Text_Info.TextYAlignment = Enum.TextYAlignment.Center
+Text_Info.Parent = Area_Title
+
+local Area_ModuleList = Instance.new("Frame")
+Area_ModuleList.Name = "Area_ModuleList"
+Area_ModuleList.BackgroundTransparency = 1
+Area_ModuleList.BorderSizePixel = 0
+Area_ModuleList.Size = UDim2.new(0.5, 0, 0, 26)
+Area_ModuleList.Position = UDim2.new(0.2, 0, 0, 31)
+Area_ModuleList.Parent = MainFrame
+
+local UIList_ModuleList = Instance.new("UIListLayout")
+UIList_ModuleList.Name = "UIList_ModuleList"
+UIList_ModuleList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList_ModuleList.FillDirection = Enum.FillDirection.Horizontal
+UIList_ModuleList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIList_ModuleList.VerticalAlignment = Enum.VerticalAlignment.Center
+UIList_ModuleList.Padding = UDim.new(0, 30)
+UIList_ModuleList.Parent = Area_ModuleList
+
+local PlaceHolder_1 = Instance.new("TextLabel")
+PlaceHolder_1.Name = "PlaceHolder_1"
+PlaceHolder_1.Font = Enum.Font.Code
+PlaceHolder_1.TextColor3 = COLOR_TEXT_NORMAL
+PlaceHolder_1.TextSize = 14
+PlaceHolder_1.Text = ""
+PlaceHolder_1.TextTransparency = 1
+PlaceHolder_1.BackgroundTransparency = 1
+PlaceHolder_1.Size = UDim2.new(0, 10, 0, 24)
+PlaceHolder_1.LayoutOrder = 1
+PlaceHolder_1.Parent = Area_ModuleList
+
+local Area_SettingList = Instance.new("Frame")
+Area_SettingList.Name = "Area_SettingList"
+Area_SettingList.BackgroundTransparency = 1
+Area_SettingList.BorderSizePixel = 0
+Area_SettingList.Size = UDim2.new(0.3, 0, 0, 26)
+Area_SettingList.Position = UDim2.new(0.7, 0, 0, 31)
+Area_SettingList.Parent = MainFrame
+
+local UIList_SettingList = Instance.new("UIListLayout")
+UIList_SettingList.Name = "UIList_SettingList"
+UIList_SettingList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList_SettingList.FillDirection = Enum.FillDirection.Horizontal
+UIList_SettingList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+UIList_SettingList.VerticalAlignment = Enum.VerticalAlignment.Center
+UIList_SettingList.Padding = UDim.new(0, 30)
+UIList_SettingList.Parent = Area_SettingList
+
+local PlaceHolder_2 = Instance.new("TextLabel")
+PlaceHolder_2.Name = "PlaceHolder_2"
+PlaceHolder_2.Font = Enum.Font.Code
+PlaceHolder_2.TextColor3 = COLOR_TEXT_NORMAL
+PlaceHolder_2.TextSize = 14
+PlaceHolder_2.Text = ""
+PlaceHolder_2.TextTransparency = 1
+PlaceHolder_2.BackgroundTransparency = 1
+PlaceHolder_2.Size = UDim2.new(0, 1, 0, 24)
+PlaceHolder_2.LayoutOrder = 999
+PlaceHolder_2.Parent = Area_SettingList
+
+local function CreateModuleListButton(text, codename, order)
+    local Button = Instance.new("TextButton")
+    Button.Name = "Button_" .. codename
+    Button.Text = text
+    Button.BackgroundTransparency = 1
+    Button.Font = Enum.Font.Code
+    Button.TextColor3 = COLOR_TEXT_NORMAL
+    Button.TextSize = 14
+    Button.LayoutOrder = order
+    Button.Size = UDim2.new(0, GetTextWidth(text), 0, 24)
+    Button.Parent = Area_ModuleList
+    local Underline = Instance.new("Frame")
+    Underline.Name = "Underline_" .. codename
+    Underline.BorderSizePixel = 0
+    Underline.Size = UDim2.new(1, 0, 0, 1)
+    Underline.Position = UDim2.new(0, 0, 0.9, -1)
+    Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
+    Underline.BackgroundTransparency = 1
+    Underline.Parent = Button
+    Button.MouseEnter:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+            tween:Play()
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
+            tween:Play()
+            dragstauts = false
+        end
+    end)
+    Button.MouseLeave:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            tween:Play()
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
+            tween:Play()
+            dragstauts = true
+        end
+    end)
+    Button.MouseButton1Click:Connect(function()
+        showmodulelist = codename
+    end)
+    return Button
+end
+
+CreateModuleListButton("Render", "render", 2)
+CreateModuleListButton("Player", "player", 3)
+CreateModuleListButton("Misc", "misc", 4)
+CreateModuleListButton("Scripts", "scripts", 5)
+
+local showsettinglist = nil
+local showmodulelist = nil
+
+local function UpdateAreaStats()
+    if guistauts == "destroy" then return end
+    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist))
+    if showsettinglist ~= nil and
+        showsettinglist ~= "console" and
+        showsettinglist ~= "info" and
+        showsettinglist ~= "settings" then
+        log("无效的区域标识：" .. tostring(showsettinglist) .. "，已重置为 nil", "warning")
+        showsettinglist = nil
+    end
+    if showsettinglist == nil then
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+    elseif showsettinglist == "info" then
+        Area_Info.Visible = true
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+    elseif showsettinglist == "console" then
+        Area_Info.Visible = false
+        Area_Console.Visible = true
+        Area_Settings.Visible = false
+    elseif showsettinglist == "settings" then
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = true
+    else
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+        showsettinglist = nil
+    end
+end
+
+showsettinglist = "console"
+NavigationHistory:Push("console")
+UpdateAreaStats()
+
+Button_Enter.MouseButton1Click:Connect(function()
+    local entry = NavigationHistory:Enter()
+    if entry then
+        showsettinglist = entry
+        UpdateAreaStats() 
+    end
+end)
+
+Button_Back.MouseButton1Click:Connect(function()
+    local entry = NavigationHistory:Back()
+    if entry then
+        showsettinglist = entry
+        UpdateAreaStats() 
+    end
+end)
+
+local function CreateSettingListButton(text, codename, order)
+    local Button = Instance.new("TextButton")
+    Button.Name = "Button_" .. codename
+    Button.Text = text
+    Button.BackgroundTransparency = 0.7
+    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    Button.BorderSizePixel = 1
+    Button.BorderColor3 = COLOR_BUTTON_BORDER
+    Button.Font = Enum.Font.Code
+    Button.TextColor3 = COLOR_TEXT_NORMAL
+    Button.TextSize = 14
+    Button.LayoutOrder = order
+    Button.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
+    Button.Parent = Area_SettingList
+    Button.MouseEnter:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
+            tween:Play()
+            dragstauts = false
+        end
+    end)
+    Button.MouseLeave:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            tween:Play()
+            dragstauts = true
+        end
+    end)
+    Button.MouseButton1Click:Connect(function()
+        if showsettinglist == codename then
+            showsettinglist = nil
+        else
+            showsettinglist = codename
+        end
+        NavigationHistory:Push(showsettinglist) 
+        UpdateAreaStats()
+    end)
+    return Button
+end
+
+CreateSettingListButton("Info", "info", 1)
+CreateSettingListButton("Console", "console", 2)
+CreateSettingListButton("Settings", "settings", 3)
+
+local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
+    local Container = Instance.new("Frame")
+    Container.Name = "Container" .. codename
+    Container.Size = UDim2.new(0, GetTextWidth(text) + 30, 0, 24)
+    Container.BackgroundTransparency = 1
+    Container.LayoutOrder = order
+    Container.Parent = Area_ConsoleSettings
+
+    local Label = Instance.new("TextLabel")
+    Label.Name = "Label" .. codename
+    Label.Size = UDim2.new(0, GetTextWidth(text), 0.9, 0)
+    Label.Text = text
+    Label.BackgroundTransparency = 1
+    Label.TextColor3 = COLOR_TEXT_NORMAL
+    Label.TextSize = 14
+    Label.Font = Enum.Font.Code
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Container
+
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0, 20, 0, 20)
+    Button.Position = UDim2.new(0, GetTextWidth(text) + 5, 0.5, -10)
+    Button.BackgroundTransparency = 0.1 
+    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    Button.BorderColor3 = COLOR_BUTTON_BORDER
+    Button.BorderSizePixel = 1.5
+    Button.Text = ""  
+    Button.Parent = Container
+
+    local ButtonCore = Instance.new("Frame")
+    ButtonCore.Size = UDim2.new(0, 0, 0, 0) 
+    ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0) 
+    ButtonCore.BackgroundColor3 = COLOR_GUI_BORDER
+    if defaultstauts then
+        ButtonCore.Size = UDim2.new(0, 10, 0, 10)
+        ButtonCore.Position = UDim2.new(0.5, -5, 0.5, -5)
+        ButtonCore.BackgroundTransparency = 0
+    else
+        ButtonCore.Size = UDim2.new(0, 0, 0, 0)
+        ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0)
+        ButtonCore.BackgroundTransparency = 1
+    end
+    ButtonCore.Parent = Button
+
+    local buttonstauts = defaultstauts
+
+    Container.MouseEnter:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = false
+    end)
+
+    Container.MouseLeave:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = true
+    end)
+
+    Button.MouseEnter:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = false
+    end)
+    Button.MouseLeave:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = true
+    end)
+
+    Button.MouseButton1Click:Connect(function()
+    buttonstauts = not buttonstauts
+    local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
+    local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
+    local newtransparency = buttonstauts and 0 or 1
+    TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = newsize,
+        Position = newposition,
+        BackgroundTransparency = newtransparency
+    }):Play()
+    
+    if effect then
+        effect(buttonstauts)
+    end
+end)
+
+    return {
+        Active = function(active)
+            buttonstauts = active
+            local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
+            local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
+            local newtransparency = buttonstauts and 0 or 1 
+            
+            TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = newsize,
+                Position = newposition,
+                BackgroundTransparency = newtransparency
+            }):Play()
+
+            if effect then
+                effect(buttonstauts)
+            end
+        end,
+        ButtonStauts = function()
+            return buttonstauts
+        end,
+        Destroy = function()
+            Container:Destroy()
+        end
+    }
+end
+
+CreateConsoleSettingButton("Output", "output", 1, ConsoleConfig.showoutput, function(status)
+    ConsoleConfig.showoutput = status
+    RefreshConsoleDisplay() 
+end)
+CreateConsoleSettingButton("Warn", "warn", 2, ConsoleConfig.showwarn, function(status)
+    ConsoleConfig.showwarn = status
+    RefreshConsoleDisplay()
+end)
+CreateConsoleSettingButton("Error", "error", 3, ConsoleConfig.showerror, function(status)
+    ConsoleConfig.showerror = status
+    RefreshConsoleDisplay() 
+end)
+
+local commandlist = {}
+local commandmap = {}
+
+local function RegisterCommand(name: string, config: {
+    aliases: {string}?,
+    usage: {string}?,
+    description: string,
+    handler: (args: {string}, raw: string) -> (boolean, string?)
+})
+    name = name:lower()
+    if not config.description or not config.handler then
+        log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
+        return false
+    end
+    local aliases = {}
+    if config.aliases then
+        for _, alias in ipairs(config.aliases) do
+            table.insert(aliases, alias:lower())
+        end
+    end
+    commandlist[name] = {
+        main = name,
+        aliases = config.aliases or {},
+        usage = config.usage or {"." .. name},
+        description = config.description,
+        handler = config.handler
+    }
+    commandmap[name] = name
+    for _, alias in ipairs(commandlist[name].aliases) do
+        local al = alias:lower()
+        if commandmap[al] then
+            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", al, commandmap[al]), "warning")
+        else
+            commandmap[al] = name
+        end
+    end
+    log("已注册命令：;" .. name .. " (" .. table.concat(commandlist[name].aliases, ", ") .. ")", "normal")
+    return true
+end
+
+local commandinputlist = {}
+local commandhistoryindex = 0
+
+local function ExecuteCommand(rawinput: string): (boolean, string?)
+    if guistauts == "destroy" then 
+        log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warning")
+        return false
+    end
+    if not rawinput:find("^;") then 
+        log("非命令输入，已忽略: " .. rawinput, "normal")
+        return false
+    end
+
+    local input = rawinput:sub(2)
+    local args = {}
+    for arg in input:gmatch("[^%s]+") do
+        table.insert(args, arg)
+    end
+    local parts = args
+    if #parts == 0 then 
+        log("命令输入为空，已忽略", "warning")
+        return false 
+    end
+    local cmdname = parts[1]:lower()
+    local args = {}
+    for i = 2, #parts do table.insert(args, parts[i]) end
+    local mainname = commandmap[cmdname]
+    if not mainname then
+        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warning")
+        return false
+    end
+    local cmd = commandlist[mainname]
+    local success, result1, result2 = pcall(cmd.handler, args, rawinput)
+    if not success then
+        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        return false
+    else 
+        table.insert(commandinputlist, rawinput)
+        log("增加命令历史记录: " .. rawinput, "normal")
+        commandhistoryindex = #commandinputlist + 1
+        log("执行成功: " .. tostring(result2 or "无返回值"), "normal")
+    end
+    if not result1 then
+        log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
+        return false, result2
+    end
+    return true, result2
+end
+
+RegisterCommand("rejoin", {
+    aliases = {"rj"},
+    usage = {";rejoin"},
+    description = "重新加入当前服务器",
+    handler = function(_, _)
+        if not TeleportService or not Localplayer() then
+            return false, "重连失败: 无法访问 TeleportService 或 LocalPlayer"
+        end
+        local success, err = pcall(function()
+            TeleportService:Teleport(Game.PlaceId, Localplayer())
+        end)
+        if success then
+            task.delay(5, DestroyNvi)
+            return true, "正在重连..."
+        else
+            return false, "重连失败: " .. tostring(err)
+        end
+    end
+})
+
+local freezestauts = false
+if Localroot() then freezestauts = Localroot().Anchored end
+RegisterCommand("freeze", {
+    aliases = {"frz"},
+    usage = {";freeze"},
+    description = "冻结你自己!",
+    handler = function(_, _)
+        if freezestauts == "error" then
+            return false, "无法获取角色状态，冻结功能不可用"
+        end
+        for _, part in ipairs(Localchar():GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Anchored = not freezestauts
+            end
+        end
+        freezestauts = not freezestauts
+        if freezestauts then    
+            return true, "角色已冻结,再次输入;freeze解冻"
+        else
+            return true, "角色已解冻"
+        end
+        return true, freezestauts and "角色已冻结" or "角色已解冻"
+    end
+})
+
+RegisterCommand("print", {
+    aliases = {"echo"},
+    usage = {";print <文本>"},
+    description = "输出文本到控制台",
+    handler = function(args, _)
+        if #args == 0 then
+            return false, "命令参数不足：;print <文本>"
+        end
+        local message = table.concat(args, " ")
+        print(message)
+        return true, "文本已输出到控制台"
+    end
+})
+
+RegisterCommand("walkspeed", {
+    aliases = {"sp", "ws", "speed"},
+    usage = {";walkspeed <数值>"},
+    description = "设置角色移动速度",
+    handler = function(args, _)
+        if #args == 0 then
+            return false, "命令参数不足：;walkspeed <数值>"
+        end
+        local value = table.concat(args, " ")
+        Localhum().WalkSpeed = tonumber(value)
+        return true, "正在设置 WalkSpeed 为 " .. value .. "..."
+    end
+})
+
+RegisterCommand("jumppower", {
+    aliases = {"jp"},
+    usage = {";jumppower <数值>"},
+    description = "设置角色跳跃力度",
+    handler = function(args, _)
+        if #args == 0 then
+            return false, "命令参数不足：;jumppower <数值>"
+        end
+        local value = table.concat(args, " ")
+        Localhum().JumpPower = tonumber(value)
+        return true, "正在设置 JumpPower 为 " .. value .. "..."
+    end
+})
+
+RegisterCommand("jumpheight", {
+    aliases = {"jh"},
+    usage = {";jumpheight <数值>"},
+    description = "设置角色跳跃高度",
+    handler = function(args, _)
+        if #args == 0 then
+            return false, "命令参数不足：;jumpheight <数值>"
+        end
+        local value = table.concat(args, " ")
+        Localhum().JumpHeight = tonumber(value)
+        return true, "正在设置 JumpHeight 为 " .. value .. "..."
+    end
+})
+
+local l33tmap = {
+    ["a"] = "4", ["A"] = "4",
+    ["b"] = "8", ["B"] = "8",
+    ["e"] = "3", ["E"] = "3",
+    ["g"] = "9", ["G"] = "9",
+    ["i"] = "1", ["I"] = "1",
+    ["l"] = "1", ["L"] = "1",
+    ["o"] = "0", ["O"] = "0",
+    ["s"] = "5", ["S"] = "5",
+    ["t"] = "7", ["T"] = "7",
+    ["z"] = "2", ["Z"] = "2",
+    ["大"] = "太", ["小"] = "少",
+    ["日"] = "曰", ["目"] = "且", ["口"] = "囗",
+    ["木"] = "朩", ["水"] = "氺", ["火"] = "灬",
+    ["土"] = "士", ["王"] = "玉", ["主"] = "玉",
+    ["天"] = "夭", ["夫"] = "失", ["未"] = "末",
+    ["己"] = "已", ["已"] = "巳", ["子"] = "孑",
+    ["刀"] = "刃", ["力"] = "办", ["又"] = "叉",
+    ["田"] = "由", ["甲"] = "申", ["干"] = "于",
+    ["八"] = "入", ["人"] = "入", ["个"] = "介",
+    ["上"] = "丄", ["下"] = "丅", ["工"] = "土",
+    ["月"] = "曰", ["用"] = "甩", ["同"] = "冋",
+    ["米"] = "来", ["半"] = "平", ["羊"] = "美",
+    ["心"] = "必", ["思"] = "恩", ["想"] = "相",
+    ["你"] = "伱", ["我"] = "莪", ["他"] = "牠",
+    ["的"] = "旳", ["是"] = "昰", ["在"] = "洅",
+    ["了"] = "ㄋ", ["和"] = "咊", ["与"] = "欤",
+    ["为"] = "爲", ["什"] = "甚", ["么"] = "幺",
+    ["好"] = "恏", ["坏"] = "孬", ["多"] = "夛",
+    ["少"] = "尐", ["长"] = "镸", ["短"] = "矬",
+    ["高"] = "髙", ["低"] = "氐", ["快"] = "夬",
+    ["慢"] = "漫", ["来"] = "來", ["去"] = "厾",
+    ["回"] = "囘", ["出"] = "岀", ["进"] = "進",
+    ["门"] = "闁", ["开"] = "幵", ["关"] = "関",
+    ["爱"] = "嗳", ["恨"] = "狠", ["情"] = "晴",
+    ["请"] = "请", ["谢"] = "榭", ["谢"] = "谢",
+    ["欢"] = "歓", ["迎"] = "迎", ["光"] = "洸",
+    ["临"] = "臨", ["好"] = "好", ["玩"] = "玩",
+    ["游"] = "遊", ["戏"] = "戯", ["软"] = "軟",
+    ["件"] = "伔", ["硬"] = "哽", ["件"] = "伔",
+}
+
+RegisterCommand("chat", {
+    aliases = {"say"},
+    usage = {";chat <system(s)/normal(n)> <文本> [l33t]"},
+    description = "在聊天中输出内容",
+    handler = function(args, _)
+        if #args < 2 then
+            return false, "命令参数不足：;chat <system(s)/normal(n)> <文本> [l33t]"
+        end
+        
+        local channel = args[1]:lower()
+        local message = table.concat(args, " ", 2, #args - (args[#args] == "l33t" and 1 or 0))
+        local usel33t = args[#args]:lower() == "l33t"
+        if usel33t then
+            if not message then 
+                return false, "命令参数不足，输入的消息为空！" 
+            end
+            local result = ""
+            for i = 1, #message do
+                local char = message:sub(i, i)
+                if l33tmap[char] and math.random() < 0.4 then
+                    result = result .. l33tmap[char]
+                else
+                    result = result .. char
+                end
+            end
+            message = result
+        end
+        
+        if channel == "system" or channel == "s" then
+            TextChatService.TextChannels.RBXSystem:SendAsync(message)
+            return true, "消息已发送到系统聊天" .. (usel33t and " (l33t 模式)" or "") .. "消息: " .. message
+        elseif channel == "normal" or channel == "n" then
+            TextChatService.TextChannels.RBXGeneral:SendAsync(message)
+            return true, "消息已发送到普通聊天" .. (usel33t and " (l33t 模式)" or "") .. "消息: " .. message
+        else
+            return false, "无效的频道！请输入 'system/s' 或 'normal/n'"
+        end
+    end
+})
+
+RegisterCommand("consoleconfig", {
+    aliases = {"cc"},
+    usage = {";consoleconfig <all|nvi|filter> <值>"},
+    description = "配置控制台显示选项",
+    handler = function(args, _)
+        if #args == 0 then
+            return true, "用法：;consoleconfig <debug|maxdisplay|filter> <值>"
+        end
+        
+        local option = args[1]:lower()
+        if option == "debug" then
+            ConsoleConfig.debuglogs = not ConsoleConfig.debuglogs
+            return true, "已切换显示 NVI 日志：" .. tostring(ConsoleConfig.debuglogs)
+        elseif option == "maxdisplay" and args[2] then
+            local number = tonumber(args[2])
+            if number and number > 0 then
+                ConsoleConfig.maxmessages = number
+                return true, "已设置最大消息数：" .. number
+            else
+                return false, "无效的数值!请输入正整数!"
+            end
+        elseif option == "filter" and args[2] then
+            table.insert(ConsoleConfig.filterkeywords, args[2])
+            return true, "已添加过滤关键词：" .. args[2]
+        else 
+            return false, "用法：;consoleconfig <debug|maxdisplay|filter> <值>"
+        end
+        return false, "未知错误"
+    end
+})
+
+RegisterCommand("help", {
+    aliases = {"?"},
+    usage = {";help [指令名]"},
+    description = "显示所有指令或查看特定指令的详细信息",
+    handler = function(args, _)
+        if #args == 0 then
+            log("命令格式: <>内为必填项 []内为选填项")
+            log("========== 可用指令列表 ==========", "normal")
+            for cmdname, cmdinfo in pairs(commandlist) do
+                local usage = table.concat(cmdinfo.usage, " / ")
+                log(string.format("%s - %s - %s", cmdname, usage, cmdinfo.description), "normal")
+            end
+            log("==================================", "normal")
+            return true, "已显示所有指令"
+        else
+            local targetcmd = args[1]:lower()
+            local mainname = commandmap[targetcmd]
+            if not mainname then
+                return false, "未知指令：" .. targetcmd
+            end
+            local cmd = commandlist[mainname]
+            log("========== 指令详情 ==========", "normal")
+            log(string.format("指令名：%s", cmd.main), "normal")
+            log(string.format("别名：%s", table.concat(cmd.aliases, ", ")), "normal")
+            log(string.format("用法：%s", table.concat(cmd.usage, " / ")), "normal")
+            log(string.format("描述：%s", cmd.description), "normal")
+            log("==============================", "normal")
+            return true, "已显示指令详情"
+        end
+        return false, "未知错误"
+    end
+})
+
+local lastframetime = tick()
+
+function UpdateInfo()
+    if guistauts == "destroy" or not MainFrame.Visible then return end
+
+    local pingtext, pingcolor = "--ms", COLOR_TEXT_NORMAL
+    local success, pingvalue = pcall(function()
+        return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+    end)
+    if success and pingvalue then
+        pingtext = pingvalue .. "ms"
+        if pingvalue < 130 then
+            pingcolor = COLOR_TEXT_GREEN
+        elseif pingvalue < 200 then
+            pingcolor = COLOR_TEXT_YELLOW
+        else
+            pingcolor = COLOR_TEXT_RED
+        end
+    else
+        pingtext = "--ms"
+        pingcolor = COLOR_TEXT_NORMAL
+    end
+
+    local cputext, cpucolor = "--%", COLOR_TEXT_NORMAL
+    local success, cpuvalue = pcall(function()
+        return math.floor(Stats.PerformanceStats.CPU:GetValue())
+    end)
+    if success and cpuvalue then
+        cputext = cpuvalue .. "%"
+        if cpuvalue < 50 then
+            cpucolor = COLOR_TEXT_GREEN
+        elseif cpuvalue < 70 then
+            cpucolor = COLOR_TEXT_YELLOW
+        else
+            cpucolor = COLOR_TEXT_RED
+        end
+    else
+        cputext = "--%"
+        cpucolor = COLOR_TEXT_NORMAL
+    end
+
+    local fpstext, fpscolor, currenttime = "--", COLOR_TEXT_NORMAL, tick()
+    local deltatime = currenttime - lastframetime
+    lastframetime = currenttime
+    if deltatime > 0.001 then
+        local fps = math.floor(1 / deltatime)
+        fpstext = tostring(fps)
+        if fps > 40 then
+            fpscolor = COLOR_TEXT_GREEN
+        elseif fps > 20 then
+            fpscolor = COLOR_TEXT_YELLOW
+        else
+            fpscolor = COLOR_TEXT_RED
+        end
+    else
+        fpstext = "--"
+        fpscolor = COLOR_TEXT_NORMAL
+    end
+
+    local postext, poscolor = "(X:? Y:? Z:?)", COLOR_TEXT_OVERLAY
+    if Localcam and Localcam.Focus then
+        local pos = Localcam.Focus.Position
+        postext = string.format("(X:%.1f Y:%.1f Z:%.1f)", pos.X, pos.Y, pos.Z)
+        poscolor = COLOR_TEXT_NORMAL
+    else 
+        postext = "(X:? Y:? Z:?)"
+        poscolor = COLOR_TEXT_NORMAL
+    end
+
+    local richtext = string.format(
+        "FPS: <font color=\"#%02X%02X%02X\">%s</font> | Ping: <font color=\"#%02X%02X%02X\">%s</font> | CPU: <font color=\"#%02X%02X%02X\">%s</font> | Position: <font color=\"#%02X%02X%02X\">%s</font>",
+        math.floor(fpscolor.R * 255), math.floor(fpscolor.G * 255), math.floor(fpscolor.B * 255), fpstext,
+        math.floor(pingcolor.R * 255), math.floor(pingcolor.G * 255), math.floor(pingcolor.B * 255), pingtext,
+        math.floor(cpucolor.R * 255), math.floor(cpucolor.G * 255), math.floor(cpucolor.B * 255), cputext,
+        math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
+    )
+    Text_Info.Text = richtext
+end
+
+RunService.Heartbeat:Connect(UpdateInfo)
+
+CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttributeChangedSignal("Status"):Connect(function() 
+    if CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status") == "destroy" then 
+        log("收到销毁信号，正在销毁 GUI...")
+        DestroyNvi() 
+    end 
+end)
+
+LogService.MessageOut:Connect(function(message, messagetype)
+    if message:find("^%[NVI%]") then return end
+    
+    if messagetype == Enum.MessageType.MessageOutput and not ConsoleConfig.showoutput then return end
+    if messagetype == Enum.MessageType.MessageWarning and not ConsoleConfig.showwarn then return end
+    if messagetype == Enum.MessageType.MessageError and not ConsoleConfig.showerror then return end
+    
+    local logtype = "normal"
+    if messagetype == Enum.MessageType.MessageError then
+        logtype = "error"
+    elseif messagetype == Enum.MessageType.MessageWarning then
+        logtype = "warning"
+    end
+    
+    local sourcescript = nil
+    local success, traceback = pcall(debug.traceback)
+    if success and traceback then
+        local scriptpath = traceback:match("%[C%]:.-\n(.-):%d+")
+        if scriptpath then
+            sourcescript = scriptpath:match("([^/\\]+)$"):gsub("%.lua$", "")
+        end
+    end
+    AddConsoleMessage(message, logtype, sourcescript)
+end)
+
+local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
+
+TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
+    if guistauts == "destroy" or not MainFrame.Visible or not enterpressed then return end
+    local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
+    if text:find("^;") then
+        ExecuteCommand(text)
+        TextBox_ConsoleInput.Text = ""
+    elseif text == "" then 
+        TextBox_ConsoleInput.Text = ""
+        log("输入了空内容") 
+        return 
+    else
+        TextBox_ConsoleInput.Text = ""
+        log("控制台输入：" .. text)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input)
+    if guistauts == "destroy" then return end
+    if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() and guistauts == "active" then
+        MainFrame.Visible = not MainFrame.Visible
+        log("GUI 状态已变为：" .. tostring(MainFrame.Visible))
+    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and Area_Console.Visible and guistauts == "active" then
+        log("按下分号键，正在聚焦命令输入框...", "normal")
+        TextBox_ConsoleInput:CaptureFocus()
+    elseif input.KeyCode == Enum.KeyCode.Up and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and Area_Console.Visible and guistauts == "active" then
+        log("查看上一条命令输入...")
+        arrowkeypressed = true
+        commandhistoryindex -= 1
+        TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
+    elseif input.KeyCode == Enum.KeyCode.Down and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and Area_Console.Visible and guistauts == "active" then
+        log("查看下一条命令输入...")
+        arrowkeypressed = true
+        commandhistoryindex += 1
+        TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
+        TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
+    elseif input.KeyCode == Enum.KeyCode.Delete and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() and guistauts == "active" then 
+        DestroyNvi()
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistauts == "active" then
+        local mousepos = Vector2.new(input.Position.X, input.Position.Y)
+        local guipos = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y)
+        local guisize = Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
+        if mousepos.X >= guipos.X and mousepos.X <= guipos.X + guisize.X and
+            mousepos.Y >= guipos.Y and mousepos.Y <= guipos.Y + guisize.Y then
+            dragging = true
+            dragstartpos = mousepos
+            framestartpos = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y)
+        else
+            dragging = false
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if guistauts == "destroy" then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement and guistauts == "active" then
+        local mousepos = Vector2.new(input.Position.X, input.Position.Y)
+        if MainFrame.Visible then
+            local guipos = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y)
+            local guisize = Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
+            if dragging then
+                local newpos = Vector2.new(
+                    math.clamp(framestartpos.X + (mousepos.X - dragstartpos.X), 0, Localcam.ViewportSize.X - MainFrame.AbsoluteSize.X),
+                    math.clamp(framestartpos.Y + (mousepos.Y - dragstartpos.Y), 0, Localcam.ViewportSize.Y - MainFrame.AbsoluteSize.Y)
+                )
+                MainFrame.Position = UDim2.new(0, newpos.X, 0, newpos.Y)
+            end
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if guistauts == "destroy" then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and guistauts == "active" then
+        dragging = false
+    end
+end)
+
+script.Name = "NVIScript"
+log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.")
