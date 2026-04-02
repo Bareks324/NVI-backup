@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00054"
+VERSION_NUMBER = "00056"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -12,7 +12,7 @@ COLOR_TEXT_FULLWHITE = Color3.fromRGB(255, 255, 255)
 COLOR_TEXT_RED = Color3.fromRGB(255, 100, 100)
 COLOR_TEXT_GREEN = Color3.fromRGB(100, 255, 100)
 COLOR_TEXT_YELLOW = Color3.fromRGB(255, 255, 100)
-COLOR_TEXT_BLUE = Color3.fromRGB(100, 100, 255)
+COLOR_TEXT_BLUE = Color3.fromRGB(0, 162, 255)
 
 local function Missing(expectedtype: string, value: any, fallback: any)
     if type(value) == expectedtype then
@@ -244,73 +244,10 @@ local ConsoleConfig = {
     showwarn = true,
     showerror = true,
     showinfo = true,
+    autoscroll = true,
     maxmessages = 500,       
     filterkeywords = {}     
 }
-
-local function AddConsoleMessage(text, messagetype)
-    if not Scroll_ConsoleOutput or not Scroll_ConsoleOutput.Parent then
-        return
-    end
-    for _, keyword in ipairs(ConsoleConfig.filterkeywords) do
-        if text:find(keyword, 1, true) then
-            return
-        end
-    end
-    local textlabel = Instance.new("TextLabel")
-    local timestamp = os.date("%H:%M:%S")
-    if not text then return "" end
-    local escapedtext = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-    local typelabel = "INFO"
-    local timestampcolor = "#C8C8C8"
-    local contentcolor = COLOR_TEXT_NORMAL
-    if messagetype == "error" then
-        typelabel = "ERROR"
-        timestampcolor = "#FF6464"
-        contentcolor = COLOR_TEXT_RED
-    elseif messagetype == "warning" then
-        typelabel = "WARN"
-        timestampcolor = "#FFFF64"
-        contentcolor = COLOR_TEXT_YELLOW
-    end
-    
-    textlabel:SetAttribute("MessageType", typelabel)
-    
-    local r = math.floor(contentcolor.R * 255)
-    local g = math.floor(contentcolor.G * 255)
-    local b = math.floor(contentcolor.B * 255)
-    local colorhex = string.format("%02X%02X%02X", r, g, b)
-    textlabel.RichText = true
-    local logprefix = string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
-    local messagetext = string.format(
-        '%s <font color="#%s">%s</font>',
-        logprefix, colorhex, escapedtext
-    )
-    textlabel.Text = messagetext
-    textlabel.TextSize = 14
-    textlabel.Font = Enum.Font.Code
-    textlabel.BackgroundTransparency = 1
-    textlabel.TextXAlignment = Enum.TextXAlignment.Left
-    textlabel.TextYAlignment = Enum.TextYAlignment.Top
-    textlabel.TextWrapped = true
-    textlabel.ClipsDescendants = false
-    textlabel.AutomaticSize = Enum.AutomaticSize.Y
-    textlabel.Size = UDim2.new(1, -10, 0, 15)
-    textlabel.Parent = Scroll_ConsoleOutput
-    local children = Scroll_ConsoleOutput:GetChildren()
-    local labelcount = 0
-    for _, child in ipairs(children) do
-        if child:IsA("TextLabel") then
-            labelcount += 1
-        end
-    end
-    if labelcount > ConsoleConfig.maxmessages then
-        local oldestlabel = children[1]
-        if oldestlabel and oldestlabel:IsA("TextLabel") then
-            oldestlabel:Destroy()
-        end
-    end
-end
 
 local function RefreshConsoleDisplay()
     if not Scroll_ConsoleOutput then return end
@@ -321,8 +258,12 @@ local function RefreshConsoleDisplay()
                 child.Visible = ConsoleConfig.showerror
             elseif msgtype == "WARN" then
                 child.Visible = ConsoleConfig.showwarn
-            else
+            elseif msgtype == "OUT" then
                 child.Visible = ConsoleConfig.showoutput
+            elseif msgtype == "INFO" then
+                child.Visible = ConsoleConfig.showinfo
+            else
+                log("未知的消息类型: " .. tostring(msgtype), "warn")
             end
         end
     end
@@ -694,6 +635,30 @@ UIList_ConsoleSetting.VerticalAlignment = Enum.VerticalAlignment.Center
 UIList_ConsoleSetting.Padding = UDim.new(0, 30)
 UIList_ConsoleSetting.Parent = Area_ConsoleSettings
 
+local PlaceHolder_ConsoleSetting1 = Instance.new("TextLabel")
+PlaceHolder_ConsoleSetting1.Name = "PlaceHolder_ConsoleSetting1"
+PlaceHolder_ConsoleSetting1.Font = Enum.Font.Code
+PlaceHolder_ConsoleSetting1.TextColor3 = COLOR_TEXT_NORMAL
+PlaceHolder_ConsoleSetting1.TextSize = 14
+PlaceHolder_ConsoleSetting1.Text = ""
+PlaceHolder_ConsoleSetting1.TextTransparency = 1
+PlaceHolder_ConsoleSetting1.BackgroundTransparency = 1
+PlaceHolder_ConsoleSetting1.Size = UDim2.new(0, 0, 1, 0)
+PlaceHolder_ConsoleSetting1.LayoutOrder = 1
+PlaceHolder_ConsoleSetting1.Parent = Area_ConsoleSettings
+
+local PlaceHolder_ConsoleSetting2 = Instance.new("TextLabel")
+PlaceHolder_ConsoleSetting2.Name = "PlaceHolder_ConsoleSetting2"
+PlaceHolder_ConsoleSetting2.Font = Enum.Font.Code
+PlaceHolder_ConsoleSetting2.TextColor3 = COLOR_TEXT_NORMAL
+PlaceHolder_ConsoleSetting2.TextSize = 14
+PlaceHolder_ConsoleSetting2.Text = ""
+PlaceHolder_ConsoleSetting2.TextTransparency = 1
+PlaceHolder_ConsoleSetting2.BackgroundTransparency = 1
+PlaceHolder_ConsoleSetting2.Size = UDim2.new(0, 0, 1, 0)
+PlaceHolder_ConsoleSetting2.LayoutOrder = 6
+PlaceHolder_ConsoleSetting2.Parent = Area_ConsoleSettings
+
 local UIListLayout_Console = Instance.new("UIListLayout")
 UIListLayout_Console.Name = "UIListLayout_Console"
 UIListLayout_Console.Padding = UDim.new(0, 2)
@@ -771,17 +736,17 @@ UIList_ModuleList.VerticalAlignment = Enum.VerticalAlignment.Center
 UIList_ModuleList.Padding = UDim.new(0, 30)
 UIList_ModuleList.Parent = Area_ModuleList
 
-local PlaceHolder_1 = Instance.new("TextLabel")
-PlaceHolder_1.Name = "PlaceHolder_1"
-PlaceHolder_1.Font = Enum.Font.Code
-PlaceHolder_1.TextColor3 = COLOR_TEXT_NORMAL
-PlaceHolder_1.TextSize = 14
-PlaceHolder_1.Text = ""
-PlaceHolder_1.TextTransparency = 1
-PlaceHolder_1.BackgroundTransparency = 1
-PlaceHolder_1.Size = UDim2.new(0, 10, 0, 24)
-PlaceHolder_1.LayoutOrder = 1
-PlaceHolder_1.Parent = Area_ModuleList
+local PlaceHolder_ModuleList = Instance.new("TextLabel")
+PlaceHolder_ModuleList.Name = "PlaceHolder_ModuleList"
+PlaceHolder_ModuleList.Font = Enum.Font.Code
+PlaceHolder_ModuleList.TextColor3 = COLOR_TEXT_NORMAL
+PlaceHolder_ModuleList.TextSize = 14
+PlaceHolder_ModuleList.Text = ""
+PlaceHolder_ModuleList.TextTransparency = 1
+PlaceHolder_ModuleList.BackgroundTransparency = 1
+PlaceHolder_ModuleList.Size = UDim2.new(0, 10, 0, 24)
+PlaceHolder_ModuleList.LayoutOrder = 1
+PlaceHolder_ModuleList.Parent = Area_ModuleList
 
 local Area_SettingList = Instance.new("Frame")
 Area_SettingList.Name = "Area_SettingList"
@@ -800,17 +765,17 @@ UIList_SettingList.VerticalAlignment = Enum.VerticalAlignment.Center
 UIList_SettingList.Padding = UDim.new(0, 30)
 UIList_SettingList.Parent = Area_SettingList
 
-local PlaceHolder_2 = Instance.new("TextLabel")
-PlaceHolder_2.Name = "PlaceHolder_2"
-PlaceHolder_2.Font = Enum.Font.Code
-PlaceHolder_2.TextColor3 = COLOR_TEXT_NORMAL
-PlaceHolder_2.TextSize = 14
-PlaceHolder_2.Text = ""
-PlaceHolder_2.TextTransparency = 1
-PlaceHolder_2.BackgroundTransparency = 1
-PlaceHolder_2.Size = UDim2.new(0, 1, 0, 24)
-PlaceHolder_2.LayoutOrder = 999
-PlaceHolder_2.Parent = Area_SettingList
+local PlaceHolder_SettingList = Instance.new("TextLabel")
+PlaceHolder_SettingList.Name = "PlaceHolder_SettingList"
+PlaceHolder_SettingList.Font = Enum.Font.Code
+PlaceHolder_SettingList.TextColor3 = COLOR_TEXT_NORMAL
+PlaceHolder_SettingList.TextSize = 14
+PlaceHolder_SettingList.Text = ""
+PlaceHolder_SettingList.TextTransparency = 1
+PlaceHolder_SettingList.BackgroundTransparency = 1
+PlaceHolder_SettingList.Size = UDim2.new(0, 1, 0, 24)
+PlaceHolder_SettingList.LayoutOrder = 999
+PlaceHolder_SettingList.Parent = Area_SettingList
 
 local function CreateModuleListButton(text, codename, order)
     local Button = Instance.new("TextButton")
@@ -1072,17 +1037,26 @@ end)
     }
 end
 
-CreateConsoleSettingButton("Output", "output", 1, ConsoleConfig.showoutput, function(status)
+CreateConsoleSettingButton("Output", "output", 2, ConsoleConfig.showoutput, function(status)
     ConsoleConfig.showoutput = status
     RefreshConsoleDisplay() 
 end)
-CreateConsoleSettingButton("Warn", "warn", 2, ConsoleConfig.showwarn, function(status)
+CreateConsoleSettingButton("Warn", "warn", 3, ConsoleConfig.showwarn, function(status)
     ConsoleConfig.showwarn = status
     RefreshConsoleDisplay()
 end)
-CreateConsoleSettingButton("Error", "error", 3, ConsoleConfig.showerror, function(status)
+CreateConsoleSettingButton("Error", "error", 4, ConsoleConfig.showerror, function(status)
     ConsoleConfig.showerror = status
     RefreshConsoleDisplay() 
+end)
+
+CreateConsoleSettingButton("Info", "info", 5, ConsoleConfig.showinfo, function(status)
+    ConsoleConfig.showinfo = status
+    RefreshConsoleDisplay() 
+end)
+
+CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, ConsoleConfig.autoscroll, function(status)
+    ConsoleConfig.autoscroll = status
 end)
 
 local commandlist = {}
@@ -1549,7 +1523,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
         contentcolor = COLOR_TEXT_NORMAL
     elseif logtype == "info" then
         typelabel = "INFO"
-        timestampcolor = "#6464FF"
+        timestampcolor = "#00A2FF"
         contentcolor = COLOR_TEXT_BLUE
     elseif logtype == "error" then
         typelabel = "ERROR"
@@ -1596,6 +1570,9 @@ LogService.MessageOut:Connect(function(message, messagetype)
         if oldestlabel and oldestlabel:IsA("TextLabel") then
             oldestlabel:Destroy()
         end
+    end
+    if ConsoleConfig.autoscroll then
+        Scroll_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
     end
 end)
 
