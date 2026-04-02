@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00057"
+VERSION_NUMBER = "00058"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1615,15 +1615,15 @@ UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() and guistauts == "active" then
         MainFrame.Visible = not MainFrame.Visible
         log("GUI 状态已变为：" .. tostring(MainFrame.Visible), "out")
-    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and Area_Console.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
         log("按下分号键，正在聚焦命令输入框...", "out")
         TextBox_ConsoleInput:CaptureFocus()
-    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and Area_Console.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
         log("查看上一条命令输入...", "out")
         arrowkeypressed = true
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
-    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and Area_Console.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
         log("查看下一条命令输入...", "out")
         arrowkeypressed = true
         commandhistoryindex += 1
