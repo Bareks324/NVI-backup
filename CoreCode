@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00059"
+VERSION_NUMBER = "00060"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -97,35 +97,42 @@ local function CreateAPI(name: string, fallback: any, ...)
     end
 end
 
-local function CreateAsyncValue(initialvalue, loader, maxretries, basedelay, watchcharacter)
-    maxretries = maxretries or 100
+local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchcharacter)
+    timeout = timeout or 60
     basedelay = basedelay or 0.3
     local value = initialvalue
     local connection = nil
+    local starttime = tick()
+    local expired = false
     
     task.spawn(function()
-        for retries = 1, maxretries do
-            local newvalue = loader()
-            if newvalue ~= nil then
+        while not expired do
+            local success, newvalue = pcall(loader)
+            if success and newvalue ~= nil then
                 value = newvalue
                 break
             end
-            if retries < maxretries then
-                task.wait(basedelay)
+            
+            if tick() - starttime >= timeout then
+                expired = true
+                break
             end
+            
+            task.wait(basedelay)
         end
+        
         if value == initialvalue then
-            log("值加载超时：" .. tostring(initialvalue), "warn")
+            pcall(log, "值加载超时：" .. tostring(initialvalue) .. " (超过 " .. timeout .. "秒)", "warn")
         end
     end)
     
-    if watchcharacter and Players.LocalPlayer then
+    if watchcharacter and Players and Players.LocalPlayer then
         connection = Players.LocalPlayer.CharacterAdded:Connect(function()
             task.wait(0.1)
-            local newvalue = loader()
-            if newvalue ~= nil then
+            local success, newvalue = pcall(loader)
+            if success and newvalue ~= nil then
                 value = newvalue
-                log("角色数据已更新", "out")
+                pcall(log, "角色数据已更新", "out")
             end
         end)
     end
@@ -271,26 +278,26 @@ Localcam = Workspace.Camera
 Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue(nil, function()
     return Players and Players.LocalPlayer
-end, 20, 0.1, true) 
+end, nil, 0.1, true) 
 Localchar = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     return player.Character
-end, 20, 0.1, true)
+end, 60, 0.1, true)
 Localhum = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChildOfClass("Humanoid")
-end, 20, 0.1, true) 
+end, 60, 0.1, true) 
 Localroot = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChild("HumanoidRootPart")
-end, 20, 0.1, true) 
+end, 60, 0.1, true) 
 
 local NavigationHistory = Config.NavigationHistory
 
