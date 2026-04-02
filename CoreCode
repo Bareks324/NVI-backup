@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00058"
+VERSION_NUMBER = "00059"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -13,6 +13,44 @@ COLOR_TEXT_RED = Color3.fromRGB(255, 100, 100)
 COLOR_TEXT_GREEN = Color3.fromRGB(100, 255, 100)
 COLOR_TEXT_YELLOW = Color3.fromRGB(255, 255, 100)
 COLOR_TEXT_BLUE = Color3.fromRGB(0, 162, 255)
+
+local Config = {
+    Console = {
+        debuglogs = true,      
+        showoutput = true,
+        showwarn = true,
+        showerror = true,
+        showinfo = true,
+        autoscroll = true,
+        maxmessages = 500,       
+        filterkeywords = {}     
+    },
+    NavigationHistory = {
+        maxhistory = 50,
+        nowindex = 0,
+        history = {}
+    },
+}
+
+local function log(text, messagetype)
+    if not Config.Console or not Config.Console.debuglogs then return end
+
+    local mtype = messagetype or "out"
+
+    if mtype == "out" and not Config.Console.showoutput then return end
+    if mtype == "warn" and not Config.Console.showwarn then return end
+    if mtype == "error" and not Config.Console.showerror then return end
+    
+    if mtype == "error" then 
+        error("[NVI] " .. text)
+    elseif mtype == "warn" then
+        warn("[NVI]", text)
+    elseif mtype == "out" then
+        print("[NVI]", text)
+    else 
+        warn("[NVI]", "这个消息属于未知频道!", text)
+    end
+end
 
 local function Missing(expectedtype: string, value: any, fallback: any)
     if type(value) == expectedtype then
@@ -59,10 +97,12 @@ local function CreateAPI(name: string, fallback: any, ...)
     end
 end
 
-local function CreateAsyncValue(initialvalue, loader, maxretries, basedelay)
+local function CreateAsyncValue(initialvalue, loader, maxretries, basedelay, watchcharacter)
     maxretries = maxretries or 100
     basedelay = basedelay or 0.3
     local value = initialvalue
+    local connection = nil
+    
     task.spawn(function()
         for retries = 1, maxretries do
             local newvalue = loader()
@@ -78,12 +118,24 @@ local function CreateAsyncValue(initialvalue, loader, maxretries, basedelay)
             log("值加载超时：" .. tostring(initialvalue), "warn")
         end
     end)
+    
+    if watchcharacter and Players.LocalPlayer then
+        connection = Players.LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.1)
+            local newvalue = loader()
+            if newvalue ~= nil then
+                value = newvalue
+                log("角色数据已更新", "out")
+            end
+        end)
+    end
+    
     return setmetatable({}, {
         __call = function() return value end,
         __index = function(_, key)
             return value and value[key]
         end
-    })
+    }), connection
 end
 
 Services = setmetatable({}, {
@@ -219,83 +271,28 @@ Localcam = Workspace.Camera
 Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue(nil, function()
     return Players and Players.LocalPlayer
-end, 20, 0.1)
+end, 20, 0.1, true) 
 Localchar = CreateAsyncValue(nil, function()
-    return Players.LocalPlayer and Players.LocalPlayer.Character
-end, 20, 0.1)
+    local player = Players.LocalPlayer
+    if not player then return nil end
+    return player.Character
+end, 20, 0.1, true)
 Localhum = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChildOfClass("Humanoid")
-end, 20, 0.1)
+end, 20, 0.1, true) 
 Localroot = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChild("HumanoidRootPart")
-end, 20, 0.1)
+end, 20, 0.1, true) 
 
-local ConsoleConfig = { 
-    debuglogs = true,      
-    showoutput = true,
-    showwarn = true,
-    showerror = true,
-    showinfo = true,
-    autoscroll = true,
-    maxmessages = 500,       
-    filterkeywords = {}     
-}
-
-local function RefreshConsoleDisplay()
-    if not Scroll_ConsoleOutput then return end
-    for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
-        if child:IsA("TextLabel") then
-            local msgtype = child:GetAttribute("MessageType") or "INFO"
-            if msgtype == "ERROR" then
-                child.Visible = ConsoleConfig.showerror
-            elseif msgtype == "WARN" then
-                child.Visible = ConsoleConfig.showwarn
-            elseif msgtype == "OUT" then
-                child.Visible = ConsoleConfig.showoutput
-            elseif msgtype == "INFO" then
-                child.Visible = ConsoleConfig.showinfo
-            else
-                log("未知的消息类型: " .. tostring(msgtype), "warn")
-            end
-        end
-    end
-end
-
-local function log(text, messagetype)
-    if not ConsoleConfig.debuglogs then return end
-
-    local mtype = messagetype or "out"
-
-    if mtype == "out" and not ConsoleConfig.showoutput then return end
-    if mtype == "warn" and not ConsoleConfig.showwarn then return end
-    if mtype == "error" and not ConsoleConfig.showerror then return end
-    
-    if mtype == "error" then 
-        error("[NVI] " .. text)
-    elseif mtype == "warn" then
-        warn("[NVI]", text)
-    elseif mtype == "out" then
-        print("[NVI]", text)
-    else 
-        warn("[NVI]", "这个消息属于未知频道!", text)
-    end
-end
-
-local NavigationHistoryConfig = {
-    maxhistory = 50,
-    nowindex = 0,
-    history = {}
-}
-
-local NavigationHistory = NavigationHistoryConfig
+local NavigationHistory = Config.NavigationHistory
 
 function NavigationHistory:Push(entry)
     if self.nowindex < #self.history then
@@ -810,68 +807,6 @@ local function CreateModuleListButton(text, codename, order)
     return Button
 end
 
-CreateModuleListButton("Render", "render", 2)
-CreateModuleListButton("Player", "player", 3)
-CreateModuleListButton("Misc", "misc", 4)
-CreateModuleListButton("Scripts", "scripts", 5)
-
-local showsettinglist = nil
-local showmodulelist = nil
-
-local function UpdateAreaStats()
-    if guistauts == "destroy" then return end
-    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
-    if showsettinglist ~= nil and
-        showsettinglist ~= "console" and
-        showsettinglist ~= "info" and
-        showsettinglist ~= "settings" then
-        log("无效的区域标识：" .. tostring(showsettinglist) .. "，已重置为 nil", "warn")
-        showsettinglist = nil
-    end
-    if showsettinglist == nil then
-        Area_Info.Visible = false
-        Area_Console.Visible = false
-        Area_Settings.Visible = false
-    elseif showsettinglist == "info" then
-        Area_Info.Visible = true
-        Area_Console.Visible = false
-        Area_Settings.Visible = false
-    elseif showsettinglist == "console" then
-        Area_Info.Visible = false
-        Area_Console.Visible = true
-        Area_Settings.Visible = false
-    elseif showsettinglist == "settings" then
-        Area_Info.Visible = false
-        Area_Console.Visible = false
-        Area_Settings.Visible = true
-    else
-        Area_Info.Visible = false
-        Area_Console.Visible = false
-        Area_Settings.Visible = false
-        showsettinglist = nil
-    end
-end
-
-showsettinglist = "console"
-NavigationHistory:Push("console")
-UpdateAreaStats()
-
-Button_Enter.MouseButton1Click:Connect(function()
-    local entry = NavigationHistory:Enter()
-    if entry then
-        showsettinglist = entry
-        UpdateAreaStats() 
-    end
-end)
-
-Button_Back.MouseButton1Click:Connect(function()
-    local entry = NavigationHistory:Back()
-    if entry then
-        showsettinglist = entry
-        UpdateAreaStats() 
-    end
-end)
-
 local function CreateSettingListButton(text, codename, order)
     local Button = Instance.new("TextButton")
     Button.Name = "Button_" .. codename
@@ -913,10 +848,6 @@ local function CreateSettingListButton(text, codename, order)
     end)
     return Button
 end
-
-CreateSettingListButton("Info", "info", 1)
-CreateSettingListButton("Console", "console", 2)
-CreateSettingListButton("Settings", "settings", 3)
 
 local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
     local Container = Instance.new("Frame")
@@ -1025,26 +956,110 @@ end)
     }
 end
 
-CreateConsoleSettingButton("Output", "output", 2, ConsoleConfig.showoutput, function(status)
-    ConsoleConfig.showoutput = status
+local showsettinglist = nil
+local showmodulelist = nil
+
+local function UpdateAreaStats()
+    if guistauts == "destroy" then return end
+    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
+    if showsettinglist ~= nil and
+        showsettinglist ~= "console" and
+        showsettinglist ~= "info" and
+        showsettinglist ~= "settings" then
+        log("无效的区域标识：" .. tostring(showsettinglist) .. "，已重置为 nil", "warn")
+        showsettinglist = nil
+    end
+    if showsettinglist == nil then
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+    elseif showsettinglist == "info" then
+        Area_Info.Visible = true
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+    elseif showsettinglist == "console" then
+        Area_Info.Visible = false
+        Area_Console.Visible = true
+        Area_Settings.Visible = false
+    elseif showsettinglist == "settings" then
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = true
+    else
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+        showsettinglist = nil
+    end
+end
+
+showsettinglist = "console"
+NavigationHistory:Push("console")
+UpdateAreaStats()
+
+Button_Enter.MouseButton1Click:Connect(function()
+    local entry = NavigationHistory:Enter()
+    if entry then
+        showsettinglist = entry
+        UpdateAreaStats() 
+    end
+end)
+
+Button_Back.MouseButton1Click:Connect(function()
+    local entry = NavigationHistory:Back()
+    if entry then
+        showsettinglist = entry
+        UpdateAreaStats() 
+    end
+end)
+
+local function RefreshConsoleDisplay()
+    if not Scroll_ConsoleOutput then return end
+    for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local msgtype = child:GetAttribute("MessageType") or "INFO"
+            if msgtype == "ERROR" then
+                child.Visible = Config.Console.showerror
+            elseif msgtype == "WARN" then
+                child.Visible = Config.Console.showwarn
+            elseif msgtype == "OUT" then
+                child.Visible = Config.Console.showoutput
+            elseif msgtype == "INFO" then
+                child.Visible = Config.Console.showinfo
+            else
+                log("未知的消息类型: " .. tostring(msgtype), "warn")
+            end
+        end
+    end
+end
+
+CreateSettingListButton("Info", "info", 1)
+CreateSettingListButton("Console", "console", 2)
+CreateSettingListButton("Settings", "settings", 3)
+CreateModuleListButton("Render", "render", 2)
+CreateModuleListButton("Player", "player", 3)
+CreateModuleListButton("Misc", "misc", 4)
+CreateModuleListButton("Scripts", "scripts", 5)
+CreateConsoleSettingButton("Output", "output", 2, Config.Console.showoutput, function(status)
+    Config.Console.showoutput = status
     RefreshConsoleDisplay() 
 end)
-CreateConsoleSettingButton("Warn", "warn", 3, ConsoleConfig.showwarn, function(status)
-    ConsoleConfig.showwarn = status
+CreateConsoleSettingButton("Warn", "warn", 3, Config.Console.showwarn, function(status)
+    Config.Console.showwarn = status
     RefreshConsoleDisplay()
 end)
-CreateConsoleSettingButton("Error", "error", 4, ConsoleConfig.showerror, function(status)
-    ConsoleConfig.showerror = status
+CreateConsoleSettingButton("Error", "error", 4, Config.Console.showerror, function(status)
+    Config.Console.showerror = status
     RefreshConsoleDisplay() 
 end)
 
-CreateConsoleSettingButton("Info", "info", 5, ConsoleConfig.showinfo, function(status)
-    ConsoleConfig.showinfo = status
+CreateConsoleSettingButton("Info", "info", 5, Config.Console.showinfo, function(status)
+    Config.Console.showinfo = status
     RefreshConsoleDisplay() 
 end)
 
-CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, ConsoleConfig.autoscroll, function(status)
-    ConsoleConfig.autoscroll = status
+CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, Config.Console.autoscroll, function(status)
+    Config.Console.autoscroll = status
 end)
 
 local commandlist = {}
@@ -1156,13 +1171,13 @@ RegisterCommand("rejoin", {
     end
 })
 
-local freezestauts = false
-if Localroot() then freezestauts = Localroot().Anchored end
 RegisterCommand("freeze", {
     aliases = {"frz"},
     usage = {";freeze"},
     description = "冻结你自己!",
     handler = function(_, _)
+        local freezestauts = false
+        if Localroot() then freezestauts = Localroot().Anchored end
         if freezestauts == "error" then
             return false, "无法获取角色状态，冻结功能不可用"
         end
@@ -1330,18 +1345,18 @@ RegisterCommand("consoleconfig", {
         
         local option = args[1]:lower()
         if option == "debug" then
-            ConsoleConfig.debuglogs = not ConsoleConfig.debuglogs
-            return true, "已切换显示 NVI 日志：" .. tostring(ConsoleConfig.debuglogs)
+            Config.Console.debuglogs = not Config.Console.debuglogs
+            return true, "已切换显示 NVI 日志：" .. tostring(Config.Console.debuglogs)
         elseif option == "maxdisplay" and args[2] then
             local number = tonumber(args[2])
             if number and number > 0 then
-                ConsoleConfig.maxmessages = number
+                Config.Console.maxmessages = number
                 return true, "已设置最大消息数：" .. number
             else
                 return false, "无效的数值!请输入正整数!"
             end
         elseif option == "filter" and args[2] then
-            table.insert(ConsoleConfig.filterkeywords, args[2])
+            table.insert(Config.Console.filterkeywords, args[2])
             return true, "已添加过滤关键词：" .. args[2]
         else 
             return false, "用法：;consoleconfig <debug|maxdisplay|filter> <值>"
@@ -1502,10 +1517,10 @@ CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttributeCha
 end)
 
 LogService.MessageOut:Connect(function(message, messagetype)
-    if messagetype == Enum.MessageType.MessageOutput and not ConsoleConfig.showoutput then return end
-    if messagetype == Enum.MessageType.MessageWarning and not ConsoleConfig.showwarn then return end
-    if messagetype == Enum.MessageType.MessageError and not ConsoleConfig.showerror then return end
-    if messagetype == Enum.MessageType.MessageInfo and not ConsoleConfig.showinfo then return end
+    if messagetype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
+    if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
+    if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
+    if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
     if not Scroll_ConsoleOutput or not Scroll_ConsoleOutput.Parent then return end
     
     local logtype = "out"
@@ -1521,7 +1536,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
         logtype = "unknown"
     end
     
-    for _, keyword in ipairs(ConsoleConfig.filterkeywords) do
+    for _, keyword in ipairs(Config.Console.filterkeywords) do
         if message:find(keyword, 1, true) then
             return
         end
@@ -1581,13 +1596,13 @@ LogService.MessageOut:Connect(function(message, messagetype)
             labelcount += 1
         end
     end
-    if labelcount > ConsoleConfig.maxmessages then
+    if labelcount > Config.Console.maxmessages then
         local oldestlabel = children[1]
         if oldestlabel and oldestlabel:IsA("TextLabel") then
             oldestlabel:Destroy()
         end
     end
-    if ConsoleConfig.autoscroll then
+    if Config.Console.autoscroll then
         Scroll_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
     end
 end)
