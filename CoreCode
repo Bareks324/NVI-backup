@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00056"
+VERSION_NUMBER = "00057"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1380,6 +1380,26 @@ RegisterCommand("help", {
             return true, "已显示指令详情"
         end
         return false, "未知错误"
+    end
+})
+
+RegisterCommand("sit", {
+    aliases = {"s"},
+    usage = {";sit"},
+    description = "让你的角色坐下或站起",
+    handler = function(args, _)
+        local humanoid = Localhum()
+        if humanoid then
+            if humanoid.Sit then
+                humanoid.Sit = false
+                return true, "角色已站起"
+            else
+                humanoid.Sit = true
+                return true, "角色已坐下"
+            end
+        else
+            return false, "无法获取角色的 Humanoid，设置坐下状态失败"
+        end
     end
 })
 
