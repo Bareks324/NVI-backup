@@ -216,6 +216,7 @@ VoiceChatService = Services.VoiceChatService
 LogService = Services.LogService
 Stats = Services.Stats
 Localcam = Workspace.Camera
+Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue(nil, function()
     return Players and Players.LocalPlayer
 end, 20, 0.1)
@@ -236,7 +237,6 @@ Localroot = CreateAsyncValue(nil, function()
     if not character then return nil end
     return character:FindFirstChild("HumanoidRootPart")
 end, 20, 0.1)
-Localmouse = UserInputService:GetMouseLocation()
 
 local ConsoleConfig = { 
     debuglogs = true,      
@@ -1392,10 +1392,18 @@ RegisterCommand("sit", {
         if humanoid then
             if humanoid.Sit then
                 humanoid.Sit = false
-                return true, "角色已站起"
+                if humanoid.Sit == false then
+                    return true, "角色已站起"
+                else
+                    return false, "设置站起状态失败"
+                end
             else
                 humanoid.Sit = true
-                return true, "角色已坐下"
+                if humanoid.Sit == true then
+                    return true, "角色已坐下"
+                else
+                    return false, "设置坐下状态失败"
+                end
             end
         else
             return false, "无法获取角色的 Humanoid，设置坐下状态失败"
