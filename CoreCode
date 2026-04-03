@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00060"
+VERSION_NUMBER = "00061"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1117,11 +1117,6 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
         log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warn")
         return false
     end
-    if not rawinput:find("^;") then 
-        log("非命令输入，已忽略: " .. rawinput, "out")
-        return false
-    end
-
     local input = rawinput:sub(2)
     local args = {}
     for arg in input:gmatch("[^%s]+") do
@@ -1627,6 +1622,7 @@ TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
         log("输入了空内容", "out") 
         return 
     else
+        loadstring(TextBox_ConsoleInput.Text)()
         TextBox_ConsoleInput.Text = ""
         log("控制台输入：" .. text, "out")
     end
