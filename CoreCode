@@ -601,6 +601,26 @@ TextBox_ConsoleInput.ClipsDescendants = true
 TextBox_ConsoleInput.MaxVisibleGraphemes = 200
 TextBox_ConsoleInput.Parent = Area_ConsoleInput
 
+local Area_ConsoleInputHint = Instance.new("Frame")
+Area_ConsoleInputHint.Name = "Area_ConsoleInputHint"
+Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, 25)
+Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -30)
+Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
+Area_ConsoleInputHint.BackgroundTransparency = 0.8
+Area_ConsoleInputHint.BorderSizePixel = 0
+Area_ConsoleInputHint.Visible = true
+Area_ConsoleInputHint.Parent = Area_ConsoleInput
+
+local Corner_ConsoleInputHint = Instance.new("UICorner")
+Corner_ConsoleInputHint.CornerRadius = UDim.new(0, 3)
+Corner_ConsoleInputHint.Parent = Area_ConsoleInputHint
+
+local Stroke_ConsoleInputHint = Instance.new("UIStroke")
+Stroke_ConsoleInputHint.Color = COLOR_TEXT_NORMAL
+Stroke_ConsoleInputHint.Thickness = 1
+Stroke_ConsoleInputHint.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke_ConsoleInputHint.Parent = Area_ConsoleInputHint
+
 Area_ConsoleOutput = Instance.new("Frame")
 Area_ConsoleOutput.Name = "Area_ConsoleOutput"
 Area_ConsoleOutput.BackgroundColor3 = COLOR_GUI_BACKGROUND
