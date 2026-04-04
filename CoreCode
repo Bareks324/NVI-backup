@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00061"
+VERSION_NUMBER = "00062"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -401,6 +401,7 @@ if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
         if CoreGui:FindFirstChild("NVIScreenGui") then
             log("旧版本似乎未检测到信号，强制销毁... NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")", "out")
+            CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
             CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
         else 
             log("已销毁，继续注入当前版本... NVI (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")", "out")
@@ -1298,20 +1299,34 @@ local l33tmap = {
 
 RegisterCommand("chat", {
     aliases = {"say"},
-    usage = {";chat <system(s)/normal(n)> <文本> [l33t]"},
+    usage = {';chat "消息" [channel == <频道>, format == l33t]'},
     description = "在聊天中输出内容",
-    handler = function(args, _)
-        if #args < 2 then
-            return false, "命令参数不足：;chat <system(s)/normal(n)> <文本> [l33t]"
+    handler = function(args, rawinput)
+        local message = rawinput:match(';chat%s*"([^"]*)"') or rawinput:match(';say%s*"([^"]*)"')
+        if not message or message == "" then
+            return false, "命令参数不足：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
         end
         
-        local channel = args[1]:lower()
-        local message = table.concat(args, " ", 2, #args - (args[#args] == "l33t" and 1 or 0))
-        local usel33t = args[#args]:lower() == "l33t"
-        if usel33t then
-            if not message then 
-                return false, "命令参数不足，输入的消息为空！" 
+        local options = rawinput:match('%[([^%]]+)%]')
+        local channel = "normal" 
+        local usel33t = false
+        if options then
+            local channelmatch = options:match('channel%s*==%s*(%w+)')
+            if channelmatch then
+                channel = channelmatch:lower()
             end
+            
+            local formatmatch = options:match('format%s*==%s*(%w+)')
+            if formatmatch and formatmatch:lower() == "l33t" then
+                usel33t = true
+            end
+        else
+            if rawinput:match('l33t') then
+                usel33t = true
+            end
+        end
+        
+        if usel33t then
             local result = ""
             for i = 1, #message do
                 local char = message:sub(i, i)
@@ -1324,20 +1339,37 @@ RegisterCommand("chat", {
             message = result
         end
         
-        if channel == "system" or channel == "s" then
-            TextChatService.TextChannels.RBXSystem:SendAsync(message)
-            return true, "消息已发送到系统聊天" .. (usel33t and " (l33t 模式)" or "") .. "消息: " .. message
-        elseif channel == "normal" or channel == "n" then
-            TextChatService.TextChannels.RBXGeneral:SendAsync(message)
-            return true, "消息已发送到普通聊天" .. (usel33t and " (l33t 模式)" or "") .. "消息: " .. message
-        else
-            return false, "无效的频道！请输入 'system/s' 或 'normal/n'"
+        if channel ~= "normal" and channel ~= "system" and channel ~= "n" and channel ~= "s" then
+            TextChatService.TextChannels.channel:SendAsync(message)
+            return true, "非roblox官方频道，尝试发送消息到输入的频道"
         end
+
+        if channel == "system" or channel == "s" then
+            local success, err = pcall(function()
+                TextChatService.TextChannels.RBXSystem:SendAsync(message)
+            end)
+            if success then
+                return true, "消息已发送到系统聊天" .. (usel33t and " (l33t 模式)" or "") .. " | 消息：" .. message
+            else
+                return false, "发送失败：" .. tostring(err)
+            end
+        elseif channel == "normal" or channel == "n" then
+            local success, err = pcall(function()
+                TextChatService.TextChannels.RBXGeneral:SendAsync(message)
+            end)
+            if success then
+                return true, "消息已发送到普通聊天" .. (usel33t and " (l33t 模式)" or "") .. " | 消息：" .. message
+            else
+                return false, "发送失败：" .. tostring(err)
+            end
+        end
+        
+        return false, "未知错误"
     end
 })
 
 RegisterCommand("consoleconfig", {
-    aliases = {"cc"},
+    aliases = {},
     usage = {";consoleconfig <all|nvi|filter> <值>"},
     description = "配置控制台显示选项",
     handler = function(args, _)
@@ -1401,7 +1433,7 @@ RegisterCommand("help", {
 })
 
 RegisterCommand("sit", {
-    aliases = {"s"},
+    aliases = {},
     usage = {";sit"},
     description = "让你的角色坐下或站起",
     handler = function(args, _)
