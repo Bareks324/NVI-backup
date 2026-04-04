@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00062"
+VERSION_NUMBER = "00063"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -608,7 +608,7 @@ Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -30)
 Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_ConsoleInputHint.BackgroundTransparency = 0.8
 Area_ConsoleInputHint.BorderSizePixel = 0
-Area_ConsoleInputHint.Visible = true
+Area_ConsoleInputHint.Visible = false
 Area_ConsoleInputHint.Parent = Area_ConsoleInput
 
 local Corner_ConsoleInputHint = Instance.new("UICorner")
