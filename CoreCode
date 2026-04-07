@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00063"
+VERSION_NUMBER = "00064"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -416,6 +416,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NVIScreenGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+ScreenGui.DisplayOrder = 999
 ScreenGui.Parent = CoreGui
 
 local Version = Instance.new("NumberValue")
@@ -433,6 +434,7 @@ MainFrame.Size = UDim2.new(0, 900, 0, 600)
 MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
 MainFrame.Visible = true
 MainFrame.BackgroundTransparency = 0.15
+MainFrame.ZIndex = 10
 MainFrame.Parent = ScreenGui
 
 local Corner_MainFrame = Instance.new("UICorner")
@@ -451,6 +453,7 @@ CrossLine_1.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_1.BorderSizePixel = 0
 CrossLine_1.Size = UDim2.new(1, 0, 0, 3)
 CrossLine_1.Position = UDim2.new(0, 0, 0, 29)
+CrossLine_1.ZIndex = 11
 CrossLine_1.Parent = MainFrame
 
 local CrossLine_2 = Instance.new("Frame")
@@ -459,6 +462,7 @@ CrossLine_2.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_2.BorderSizePixel = 0
 CrossLine_2.Size = UDim2.new(0, 3, 1, -31)
 CrossLine_2.Position = UDim2.new(0.2, 0, 0, 31)
+CrossLine_2.ZIndex = 11
 CrossLine_2.Parent = MainFrame
 
 local CrossLine_3 = Instance.new("Frame")
@@ -467,6 +471,7 @@ CrossLine_3.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_3.BorderSizePixel = 0
 CrossLine_3.Size = UDim2.new(0.8, 0, 0, 3)
 CrossLine_3.Position = UDim2.new(0.2, 0, 0, 55)
+CrossLine_3.ZIndex = 11
 CrossLine_3.Parent = MainFrame
 
 local CrossLine_4 = Instance.new("Frame")
@@ -475,6 +480,7 @@ CrossLine_4.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_4.BorderSizePixel = 0
 CrossLine_4.Size = UDim2.new(0, 3, 0, 26)
 CrossLine_4.Position = UDim2.new(0.7, 0, 0, 31)
+CrossLine_4.ZIndex = 11
 CrossLine_4.Parent = MainFrame
 
 local CrossLine_5 = Instance.new("Frame")
@@ -483,6 +489,7 @@ CrossLine_5.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_5.BorderSizePixel = 0
 CrossLine_5.Size = UDim2.new(0.2, 0, 0, 3)
 CrossLine_5.Position = UDim2.new(0, 0, 0, 55)
+CrossLine_5.ZIndex = 11
 CrossLine_5.Parent = MainFrame
 
 local Area_Sidebar = Instance.new("Frame")
@@ -491,6 +498,7 @@ Area_Sidebar.BackgroundTransparency = 1
 Area_Sidebar.BorderSizePixel = 0
 Area_Sidebar.Size = UDim2.new(0.2, 0, 0, 26)
 Area_Sidebar.Position = UDim2.new(0, 0, 0, 30)
+Area_Sidebar.ZIndex = 1
 Area_Sidebar.Parent = MainFrame
 
 local Button_Back = Instance.new("TextButton")
@@ -503,6 +511,7 @@ Button_Back.BackgroundTransparency = 1
 Button_Back.BorderSizePixel = 0
 Button_Back.Size = UDim2.new(0, 90, 0.99, 0)
 Button_Back.Position = UDim2.new(0, 0, 0, 1)
+Button_Back.ZIndex = 13
 Button_Back.Parent = Area_Sidebar
 
 local Stroke_Button_Back = Instance.new("UIStroke")
@@ -521,6 +530,7 @@ Button_Enter.BackgroundTransparency = 1
 Button_Enter.BorderSizePixel = 0
 Button_Enter.Size = UDim2.new(0, 90, 0.99, 0)
 Button_Enter.Position = UDim2.new(0, 90, 0, 1)
+Button_Enter.ZIndex = 13
 Button_Enter.Parent = Area_Sidebar
 
 local Stroke_Button_Enter = Instance.new("UIStroke")
@@ -535,6 +545,7 @@ Area_Module.BackgroundTransparency = 1
 Area_Module.BorderSizePixel = 0
 Area_Module.Size = UDim2.new(0.2, 0, 1, -56)
 Area_Module.Position = UDim2.new(0, 0, 0, 56)
+Area_Module.ZIndex = 1
 Area_Module.Parent = MainFrame
 
 local Area_Config = Instance.new("Frame")
@@ -543,6 +554,7 @@ Area_Config.BackgroundTransparency = 1
 Area_Config.BorderSizePixel = 0
 Area_Config.Size = UDim2.new(0.8, -3, 1, -57)
 Area_Config.Position = UDim2.new(0.2, 3, 0, 57)
+Area_Config.ZIndex = 1
 Area_Config.Parent = MainFrame
 
 local Area_Info = Instance.new("Frame")
@@ -551,7 +563,8 @@ Area_Info.BackgroundTransparency = 1
 Area_Info.BorderSizePixel = 0
 Area_Info.Size = UDim2.new(1, 0, 1, 0)
 Area_Info.Position = UDim2.new(0, 0, 0, 0)
-Area_Info.Visible = true
+Area_Info.Visible = false
+Area_Info.ZIndex = 1
 Area_Info.Parent = Area_Config
 
 local Area_Console = Instance.new("Frame")
@@ -561,6 +574,7 @@ Area_Console.BorderSizePixel = 0
 Area_Console.Size = UDim2.new(1, 0, 1, 0)
 Area_Console.Position = UDim2.new(0, 0, 0, 0)
 Area_Console.Visible = false
+Area_Console.ZIndex = 1
 Area_Console.Parent = Area_Config
 
 local Area_ConsoleInput = Instance.new("Frame")
@@ -570,6 +584,7 @@ Area_ConsoleInput.Position = UDim2.new(0.005, 0, 0.95, 0)
 Area_ConsoleInput.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_ConsoleInput.BackgroundTransparency = 0.8
 Area_ConsoleInput.BorderColor3 = COLOR_BUTTON_BORDER
+Area_ConsoleInput.ZIndex = 12
 Area_ConsoleInput.Parent = Area_Console
 
 Area_ConsoleInput.MouseEnter:Connect(function()
@@ -599,6 +614,7 @@ TextBox_ConsoleInput.TextWrapped = false
 TextBox_ConsoleInput.ClearTextOnFocus = false
 TextBox_ConsoleInput.ClipsDescendants = true
 TextBox_ConsoleInput.MaxVisibleGraphemes = 200
+TextBox_ConsoleInput.ZIndex = 13
 TextBox_ConsoleInput.Parent = Area_ConsoleInput
 
 local Area_ConsoleInputHint = Instance.new("Frame")
@@ -606,9 +622,10 @@ Area_ConsoleInputHint.Name = "Area_ConsoleInputHint"
 Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, 25)
 Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -30)
 Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
-Area_ConsoleInputHint.BackgroundTransparency = 0.8
+Area_ConsoleInputHint.BackgroundTransparency = 0
 Area_ConsoleInputHint.BorderSizePixel = 0
 Area_ConsoleInputHint.Visible = false
+Area_ConsoleInputHint.ZIndex = 20
 Area_ConsoleInputHint.Parent = Area_ConsoleInput
 
 local Corner_ConsoleInputHint = Instance.new("UICorner")
@@ -628,6 +645,7 @@ Area_ConsoleOutput.BackgroundTransparency = 0.8
 Area_ConsoleOutput.BorderColor3 = COLOR_BUTTON_BORDER
 Area_ConsoleOutput.Size = UDim2.new(0.99, 0, 0, 480)
 Area_ConsoleOutput.Position = UDim2.new(0.005, 0, 0, 35)
+Area_ConsoleOutput.ZIndex = 1
 Area_ConsoleOutput.Parent = Area_Console
 
 Scroll_ConsoleOutput = Instance.new("ScrollingFrame")
@@ -640,6 +658,7 @@ Scroll_ConsoleOutput.ScrollBarThickness = 9
 Scroll_ConsoleOutput.ScrollBarImageTransparency = 0.5
 Scroll_ConsoleOutput.AutomaticCanvasSize = Enum.AutomaticSize.Y
 Scroll_ConsoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
+Scroll_ConsoleOutput.ZIndex = 12
 Scroll_ConsoleOutput.Parent = Area_ConsoleOutput
 
 Area_ConsoleSettings = Instance.new("Frame")
@@ -649,6 +668,7 @@ Area_ConsoleSettings.BackgroundTransparency = 0.8
 Area_ConsoleSettings.BorderColor3 = COLOR_BUTTON_BORDER
 Area_ConsoleSettings.Size = UDim2.new(0.99, 0, 0, 30)
 Area_ConsoleSettings.Position = UDim2.new(0.005, 0, 0, 5)
+Area_ConsoleSettings.ZIndex = 1
 Area_ConsoleSettings.Parent = Area_Console
 
 local UIList_ConsoleSetting = Instance.new("UIListLayout")
@@ -670,6 +690,7 @@ PlaceHolder_ConsoleSetting.TextTransparency = 1
 PlaceHolder_ConsoleSetting.BackgroundTransparency = 1
 PlaceHolder_ConsoleSetting.Size = UDim2.new(0, 0, 1, 0)
 PlaceHolder_ConsoleSetting.LayoutOrder = 1
+PlaceHolder_ConsoleSetting.ZIndex = 13
 PlaceHolder_ConsoleSetting.Parent = Area_ConsoleSettings
 
 local UIListLayout_Console = Instance.new("UIListLayout")
@@ -695,6 +716,7 @@ Area_Settings.BorderSizePixel = 0
 Area_Settings.Size = UDim2.new(1, 0, 1, 0)
 Area_Settings.Position = UDim2.new(0, 0, 0, 0)
 Area_Settings.Visible = false
+Area_Settings.ZIndex = 1
 Area_Settings.Parent = Area_Config
 
 Scroll_Settings = Instance.new("ScrollingFrame")
@@ -707,6 +729,7 @@ Scroll_Settings.ScrollBarThickness = 9
 Scroll_Settings.ScrollBarImageTransparency = 0.5
 Scroll_Settings.AutomaticCanvasSize = Enum.AutomaticSize.Y
 Scroll_Settings.CanvasSize = UDim2.new(0, 0, 0, 0)
+Scroll_Settings.ZIndex = 12
 Scroll_Settings.Parent = Area_Settings
 
 local Area_Title = Instance.new("Frame")
@@ -716,6 +739,7 @@ Area_Title.BorderSizePixel = 0
 Area_Title.Size = UDim2.new(1, 0, 0, 29)
 Area_Title.Position = UDim2.new(0, 0, 0, 0)
 Area_Title.Visible = true
+Area_Title.ZIndex = 1
 Area_Title.Parent = MainFrame
 
 local Text_Info = Instance.new("TextLabel")
@@ -730,6 +754,7 @@ Text_Info.Size = UDim2.new(1, 0, 1, 0)
 Text_Info.Position = UDim2.new(0, 0, 0, 0)
 Text_Info.TextXAlignment = Enum.TextXAlignment.Center
 Text_Info.TextYAlignment = Enum.TextYAlignment.Center
+Text_Info.ZIndex = 13
 Text_Info.Parent = Area_Title
 
 local Area_ModuleList = Instance.new("Frame")
@@ -738,6 +763,7 @@ Area_ModuleList.BackgroundTransparency = 1
 Area_ModuleList.BorderSizePixel = 0
 Area_ModuleList.Size = UDim2.new(0.5, 0, 0, 26)
 Area_ModuleList.Position = UDim2.new(0.2, 0, 0, 31)
+Area_ModuleList.ZIndex = 1
 Area_ModuleList.Parent = MainFrame
 
 local UIList_ModuleList = Instance.new("UIListLayout")
@@ -759,6 +785,7 @@ PlaceHolder_ModuleList.TextTransparency = 1
 PlaceHolder_ModuleList.BackgroundTransparency = 1
 PlaceHolder_ModuleList.Size = UDim2.new(0, 10, 0, 24)
 PlaceHolder_ModuleList.LayoutOrder = 1
+PlaceHolder_ModuleList.ZIndex = 13
 PlaceHolder_ModuleList.Parent = Area_ModuleList
 
 local Area_SettingList = Instance.new("Frame")
@@ -767,6 +794,7 @@ Area_SettingList.BackgroundTransparency = 1
 Area_SettingList.BorderSizePixel = 0
 Area_SettingList.Size = UDim2.new(0.3, 0, 0, 26)
 Area_SettingList.Position = UDim2.new(0.7, 0, 0, 31)
+Area_SettingList.ZIndex = 1
 Area_SettingList.Parent = MainFrame
 
 local UIList_SettingList = Instance.new("UIListLayout")
@@ -788,204 +816,10 @@ PlaceHolder_SettingList.TextTransparency = 1
 PlaceHolder_SettingList.BackgroundTransparency = 1
 PlaceHolder_SettingList.Size = UDim2.new(0, 1, 0, 24)
 PlaceHolder_SettingList.LayoutOrder = 999
+PlaceHolder_SettingList.ZIndex = 13
 PlaceHolder_SettingList.Parent = Area_SettingList
 
-local function CreateModuleListButton(text, codename, order)
-    local Button = Instance.new("TextButton")
-    Button.Name = "Button_" .. codename
-    Button.Text = text
-    Button.BackgroundTransparency = 1
-    Button.Font = Enum.Font.Code
-    Button.TextColor3 = COLOR_TEXT_NORMAL
-    Button.TextSize = 14
-    Button.LayoutOrder = order
-    Button.Size = UDim2.new(0, GetTextWidth(text), 0, 24)
-    Button.Parent = Area_ModuleList
-    local Underline = Instance.new("Frame")
-    Underline.Name = "Underline_" .. codename
-    Underline.BorderSizePixel = 0
-    Underline.Size = UDim2.new(1, 0, 0, 1)
-    Underline.Position = UDim2.new(0, 0, 0.9, -1)
-    Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
-    Underline.BackgroundTransparency = 1
-    Underline.Parent = Button
-    Button.MouseEnter:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
-            tween:Play()
-            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
-            tween:Play()
-            dragstauts = false
-        end
-    end)
-    Button.MouseLeave:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
-            tween:Play()
-            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
-            tween:Play()
-            dragstauts = true
-        end
-    end)
-    Button.MouseButton1Click:Connect(function()
-        showmodulelist = codename
-    end)
-    return Button
-end
-
-local function CreateSettingListButton(text, codename, order)
-    local Button = Instance.new("TextButton")
-    Button.Name = "Button_" .. codename
-    Button.Text = text
-    Button.BackgroundTransparency = 0.7
-    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
-    Button.BorderSizePixel = 1
-    Button.BorderColor3 = COLOR_BUTTON_BORDER
-    Button.Font = Enum.Font.Code
-    Button.TextColor3 = COLOR_TEXT_NORMAL
-    Button.TextSize = 14
-    Button.LayoutOrder = order
-    Button.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
-    Button.Parent = Area_SettingList
-    Button.MouseEnter:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
-            tween:Play()
-            dragstauts = false
-        end
-    end)
-    Button.MouseLeave:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
-            tween:Play()
-            dragstauts = true
-        end
-    end)
-    Button.MouseButton1Click:Connect(function()
-        if showsettinglist == codename then
-            showsettinglist = nil
-        else
-            showsettinglist = codename
-        end
-        NavigationHistory:Push(showsettinglist) 
-        UpdateAreaStats()
-    end)
-    return Button
-end
-
-local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
-    local Container = Instance.new("Frame")
-    Container.Name = "Container" .. codename
-    Container.Size = UDim2.new(0, GetTextWidth(text) + 30, 0, 24)
-    Container.BackgroundTransparency = 1
-    Container.LayoutOrder = order
-    Container.Parent = Area_ConsoleSettings
-
-    local Label = Instance.new("TextLabel")
-    Label.Name = "Label" .. codename
-    Label.Size = UDim2.new(0, GetTextWidth(text), 0.9, 0)
-    Label.Text = text
-    Label.BackgroundTransparency = 1
-    Label.TextColor3 = COLOR_TEXT_NORMAL
-    Label.TextSize = 14
-    Label.Font = Enum.Font.Code
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Parent = Container
-
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 20, 0, 20)
-    Button.Position = UDim2.new(0, GetTextWidth(text) + 5, 0.5, -10)
-    Button.BackgroundTransparency = 0.1 
-    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
-    Button.BorderColor3 = COLOR_BUTTON_BORDER
-    Button.BorderSizePixel = 1.5
-    Button.Text = ""  
-    Button.Parent = Container
-
-    local ButtonCore = Instance.new("Frame")
-    ButtonCore.Size = UDim2.new(0, 0, 0, 0) 
-    ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0) 
-    ButtonCore.BackgroundColor3 = COLOR_GUI_BORDER
-    if defaultstauts then
-        ButtonCore.Size = UDim2.new(0, 10, 0, 10)
-        ButtonCore.Position = UDim2.new(0.5, -5, 0.5, -5)
-        ButtonCore.BackgroundTransparency = 0
-    else
-        ButtonCore.Size = UDim2.new(0, 0, 0, 0)
-        ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0)
-        ButtonCore.BackgroundTransparency = 1
-    end
-    ButtonCore.Parent = Button
-
-    local buttonstauts = defaultstauts
-
-    Container.MouseEnter:Connect(function()
-        if not guistauts ~= "destroy" then return end
-        dragstauts = false
-    end)
-
-    Container.MouseLeave:Connect(function()
-        if not guistauts ~= "destroy" then return end
-        dragstauts = true
-    end)
-
-    Button.MouseEnter:Connect(function()
-        if not guistauts ~= "destroy" then return end
-        dragstauts = false
-    end)
-    Button.MouseLeave:Connect(function()
-        if not guistauts ~= "destroy" then return end
-        dragstauts = true
-    end)
-
-    Button.MouseButton1Click:Connect(function()
-    buttonstauts = not buttonstauts
-    local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
-    local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
-    local newtransparency = buttonstauts and 0 or 1
-    TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Size = newsize,
-        Position = newposition,
-        BackgroundTransparency = newtransparency
-    }):Play()
-    
-    if effect then
-        effect(buttonstauts)
-    end
-end)
-
-    return {
-        Active = function(active)
-            buttonstauts = active
-            local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
-            local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
-            local newtransparency = buttonstauts and 0 or 1 
-            
-            TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = newsize,
-                Position = newposition,
-                BackgroundTransparency = newtransparency
-            }):Play()
-
-            if effect then
-                effect(buttonstauts)
-            end
-        end,
-        ButtonStauts = function()
-            return buttonstauts
-        end,
-        Destroy = function()
-            Container:Destroy()
-        end
-    }
-end
-
-local showsettinglist = nil
-local showmodulelist = nil
+local showsettinglist, showmodulelist = nil, nil
 
 local function UpdateAreaStats()
     if guistauts == "destroy" then return end
@@ -1061,6 +895,207 @@ local function RefreshConsoleDisplay()
     end
 end
 
+local function CreateModuleListButton(text, codename, order)
+    local Button = Instance.new("TextButton")
+    Button.Name = "Button_" .. codename
+    Button.Text = text
+    Button.BackgroundTransparency = 1
+    Button.Font = Enum.Font.Code
+    Button.TextColor3 = COLOR_TEXT_NORMAL
+    Button.TextSize = 14
+    Button.LayoutOrder = order
+    Button.Size = UDim2.new(0, GetTextWidth(text), 0, 24)
+    Button.ZIndex = 13
+    Button.Parent = Area_ModuleList
+    local Underline = Instance.new("Frame")
+    Underline.Name = "Underline_" .. codename
+    Underline.BorderSizePixel = 0
+    Underline.Size = UDim2.new(1, 0, 0, 1)
+    Underline.Position = UDim2.new(0, 0, 0.9, -1)
+    Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
+    Underline.BackgroundTransparency = 1
+    Underline.ZIndex = 13
+    Underline.Parent = Button
+    Button.MouseEnter:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+            tween:Play()
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
+            tween:Play()
+            dragstauts = false
+        end
+    end)
+    Button.MouseLeave:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            tween:Play()
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
+            tween:Play()
+            dragstauts = true
+        end
+    end)
+    Button.MouseButton1Click:Connect(function()
+        showmodulelist = codename
+    end)
+    return Button
+end
+
+local function CreateSettingListButton(text, codename, order)
+    local Button = Instance.new("TextButton")
+    Button.Name = "Button_" .. codename
+    Button.Text = text
+    Button.BackgroundTransparency = 0.7
+    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    Button.BorderSizePixel = 1
+    Button.BorderColor3 = COLOR_BUTTON_BORDER
+    Button.Font = Enum.Font.Code
+    Button.TextColor3 = COLOR_TEXT_NORMAL
+    Button.TextSize = 14
+    Button.LayoutOrder = order
+    Button.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
+    Button.ZIndex = 13
+    Button.Parent = Area_SettingList
+    Button.MouseEnter:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
+            tween:Play()
+            dragstauts = false
+        end
+    end)
+    Button.MouseLeave:Connect(function()
+        if guistauts ~= "destroy" then
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            tween:Play()
+            dragstauts = true
+        end
+    end)
+    Button.MouseButton1Click:Connect(function()
+        if showsettinglist == codename then
+            showsettinglist = nil
+        else
+            showsettinglist = codename
+        end
+        NavigationHistory:Push(showsettinglist) 
+        UpdateAreaStats()
+    end)
+    return Button
+end
+
+local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
+    local Container = Instance.new("Frame")
+    Container.Name = "Container" .. codename
+    Container.Size = UDim2.new(0, GetTextWidth(text) + 30, 0, 24)
+    Container.BackgroundTransparency = 1
+    Container.LayoutOrder = order
+    Container.ZIndex = 13
+    Container.Parent = Area_ConsoleSettings
+
+    local Label = Instance.new("TextLabel")
+    Label.Name = "Label" .. codename
+    Label.Size = UDim2.new(0, GetTextWidth(text), 0.9, 0)
+    Label.Text = text
+    Label.BackgroundTransparency = 1
+    Label.TextColor3 = COLOR_TEXT_NORMAL
+    Label.TextSize = 14
+    Label.Font = Enum.Font.Code
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.ZIndex = 13
+    Label.Parent = Container
+
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0, 20, 0, 20)
+    Button.Position = UDim2.new(0, GetTextWidth(text) + 5, 0.5, -10)
+    Button.BackgroundTransparency = 0.1 
+    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    Button.BorderColor3 = COLOR_BUTTON_BORDER
+    Button.BorderSizePixel = 1.5
+    Button.Text = ""  
+    Button.ZIndex = 13
+    Button.Parent = Container
+
+    local ButtonCore = Instance.new("Frame")
+    ButtonCore.Size = UDim2.new(0, 0, 0, 0) 
+    ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0) 
+    ButtonCore.BackgroundColor3 = COLOR_GUI_BORDER
+    if defaultstauts then
+        ButtonCore.Size = UDim2.new(0, 10, 0, 10)
+        ButtonCore.Position = UDim2.new(0.5, -5, 0.5, -5)
+        ButtonCore.BackgroundTransparency = 0
+    else
+        ButtonCore.Size = UDim2.new(0, 0, 0, 0)
+        ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0)
+        ButtonCore.BackgroundTransparency = 1
+    end
+    ButtonCore.ZIndex = 13
+    ButtonCore.Parent = Button
+
+    local buttonstauts = defaultstauts
+
+    Container.MouseEnter:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = false
+    end)
+
+    Container.MouseLeave:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = true
+    end)
+
+    Button.MouseEnter:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = false
+    end)
+    Button.MouseLeave:Connect(function()
+        if not guistauts ~= "destroy" then return end
+        dragstauts = true
+    end)
+
+    Button.MouseButton1Click:Connect(function()
+    buttonstauts = not buttonstauts
+    local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
+    local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
+    local newtransparency = buttonstauts and 0 or 1
+    TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = newsize,
+        Position = newposition,
+        BackgroundTransparency = newtransparency
+    }):Play()
+    
+    if effect then
+        effect(buttonstauts)
+    end
+end)
+
+    return {
+        Active = function(active)
+            buttonstauts = active
+            local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
+            local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
+            local newtransparency = buttonstauts and 0 or 1 
+            
+            TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = newsize,
+                Position = newposition,
+                BackgroundTransparency = newtransparency
+            }):Play()
+
+            if effect then
+                effect(buttonstauts)
+            end
+        end,
+        ButtonStauts = function()
+            return buttonstauts
+        end,
+        Destroy = function()
+            Container:Destroy()
+        end
+    }
+end
+
 CreateSettingListButton("Info", "info", 1)
 CreateSettingListButton("Console", "console", 2)
 CreateSettingListButton("Settings", "settings", 3)
@@ -1090,8 +1125,49 @@ CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, Config.Console.autosc
     Config.Console.autoscroll = status
 end)
 
-local commandlist = {}
-local commandmap = {}
+local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
+
+local function ExecuteCommand(rawinput: string): (boolean, string?)
+    if guistauts == "destroy" then 
+        log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warn")
+        return false
+    end
+    local input = rawinput:sub(2)
+    local args = {}
+    for arg in input:gmatch("[^%s]+") do
+        table.insert(args, arg)
+    end
+    local parts = args
+    if #parts == 0 then 
+        log("命令输入为空，已忽略", "warn")
+        return false 
+    end
+    local cmdname = parts[1]:lower()
+    local args = {}
+    for i = 2, #parts do table.insert(args, parts[i]) end
+    local mainname = commandmap[cmdname]
+    if not mainname then
+        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
+        return false
+    end
+    local cmd = commandlist[mainname]
+    local success, result1, result2 = pcall(cmd.handler, args, rawinput)
+    if not success then
+        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        return false
+    else 
+        table.insert(commandinputlist, rawinput)
+        log("增加命令历史记录: " .. rawinput, "out")
+        commandhistoryindex = #commandinputlist + 1
+        if not result1 then
+            log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
+            return false, result2
+        else 
+            log("执行成功: " .. tostring(result2 or "无返回值"), "out")
+        end
+    end
+    return true, result2
+end
 
 local function RegisterCommand(name: string, config: {
     aliases: {string}?,
@@ -1130,50 +1206,6 @@ local function RegisterCommand(name: string, config: {
     return true
 end
 
-local commandinputlist = {}
-local commandhistoryindex = 0
-
-local function ExecuteCommand(rawinput: string): (boolean, string?)
-    if guistauts == "destroy" then 
-        log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warn")
-        return false
-    end
-    local input = rawinput:sub(2)
-    local args = {}
-    for arg in input:gmatch("[^%s]+") do
-        table.insert(args, arg)
-    end
-    local parts = args
-    if #parts == 0 then 
-        log("命令输入为空，已忽略", "warn")
-        return false 
-    end
-    local cmdname = parts[1]:lower()
-    local args = {}
-    for i = 2, #parts do table.insert(args, parts[i]) end
-    local mainname = commandmap[cmdname]
-    if not mainname then
-        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
-        return false
-    end
-    local cmd = commandlist[mainname]
-    local success, result1, result2 = pcall(cmd.handler, args, rawinput)
-    if not success then
-        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
-        return false
-    else 
-        table.insert(commandinputlist, rawinput)
-        log("增加命令历史记录: " .. rawinput, "out")
-        commandhistoryindex = #commandinputlist + 1
-        log("执行成功: " .. tostring(result2 or "无返回值"), "out")
-    end
-    if not result1 then
-        log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
-        return false, result2
-    end
-    return true, result2
-end
-
 RegisterCommand("rejoin", {
     aliases = {"rj"},
     usage = {";rejoin"},
@@ -1191,6 +1223,20 @@ RegisterCommand("rejoin", {
         else
             return false, "重连失败: " .. tostring(err)
         end
+    end
+})
+
+RegisterCommand("print", {
+    aliases = {"echo"},
+    usage = {";print <文本>"},
+    description = "输出文本到控制台",
+    handler = function(args, _)
+        if #args == 0 then
+            return false, "命令参数不足：;print <文本>"
+        end
+        local message = table.concat(args, " ")
+        print(message)
+        return true, "文本已输出到控制台"
     end
 })
 
@@ -1219,17 +1265,24 @@ RegisterCommand("freeze", {
     end
 })
 
-RegisterCommand("print", {
-    aliases = {"echo"},
-    usage = {";print <文本>"},
-    description = "输出文本到控制台",
+RegisterCommand("sit", {
+    aliases = {},
+    usage = {";sit"},
+    description = "让你的角色坐下或站起",
     handler = function(args, _)
-        if #args == 0 then
-            return false, "命令参数不足：;print <文本>"
+        if Localhum() then
+            Localhum().Sit = not Localhum().Sit
+            if Localhum().Sit then
+                return true, "角色已坐下"
+            elseif Localhum().Sit == false then
+                return true, "角色已站起"
+            else 
+                return false, "未知错误"
+            end
+        else
+            return false, "无法获取角色的 Humanoid"
         end
-        local message = table.concat(args, " ")
-        print(message)
-        return true, "文本已输出到控制台"
+        return false, "未知错误"
     end
 })
 
@@ -1241,9 +1294,23 @@ RegisterCommand("walkspeed", {
         if #args == 0 then
             return false, "命令参数不足：;walkspeed <数值>"
         end
-        local value = table.concat(args, " ")
-        Localhum().WalkSpeed = tonumber(value)
-        return true, "正在设置 WalkSpeed 为 " .. value .. "..."
+        local value = tonumber(args[1])
+        if not value then
+            return false, "输入的数值需要是数字!"
+        end
+        if Localhum() then
+            Localhum().WalkSpeed = value
+            if Localhum().WalkSpeed == value then
+                return true, "设置 WalkSpeed 为 " .. value .. " 成功"
+            elseif Localhum().WalkSpeed ~= value then
+                return false, "设置 WalkSpeed 为 " .. value .. " 失败"
+            else
+                return false, "未知错误"
+            end
+        else
+            return false, "无法获取 Humanoid"
+        end
+        return false, "未知错误"
     end
 })
 
@@ -1255,9 +1322,23 @@ RegisterCommand("jumppower", {
         if #args == 0 then
             return false, "命令参数不足：;jumppower <数值>"
         end
-        local value = table.concat(args, " ")
-        Localhum().JumpPower = tonumber(value)
-        return true, "正在设置 JumpPower 为 " .. value .. "..."
+        local value = tonumber(args[1])
+        if not value then
+            return false, "输入的数值需要是数字!"
+        end
+        if Localhum() then 
+            Localhum().JumpPower = value
+            if Localhum().JumpPower == value then 
+                return true, "设置 JumpPower 为 " .. value .. " 成功"
+            elseif Localhum().JumpPower ~= value then
+                return false, "设置 JumpPower 为" .. value .. " 失败"
+            else
+                return false, "未知错误"
+            end
+        else 
+            return false, "无法获取角色的 Humanoid"
+        end
+        return false, "未知错误"
     end
 })
 
@@ -1269,9 +1350,23 @@ RegisterCommand("jumpheight", {
         if #args == 0 then
             return false, "命令参数不足：;jumpheight <数值>"
         end
-        local value = table.concat(args, " ")
-        Localhum().JumpHeight = tonumber(value)
-        return true, "正在设置 JumpHeight 为 " .. value .. "..."
+        local value = tonumber(args[1])
+        if not value then
+            return false, "输入的数值需要是数字!"
+        end
+        if Localhum() then 
+            Localhum().JumpHeight = value
+            if Localhum().JumpHeight == value then 
+                return true, "设置 JumpHeight 为 " .. value .. " 成功"
+            elseif Localhum().JumpHeight ~= value then 
+                return false, "设置 JumpHeight 为" .. value .. " 失败"
+            else
+                return false, "未知错误"
+            end
+        else 
+            return false, "无法获取角色的 Humanoid"
+        end
+        return false, "未知错误"
     end
 })
 
@@ -1326,7 +1421,6 @@ RegisterCommand("chat", {
         if not message or message == "" then
             return false, "命令参数不足：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
         end
-        
         local options = rawinput:match('%[([^%]]+)%]')
         local channel = "normal" 
         local usel33t = false
@@ -1335,7 +1429,6 @@ RegisterCommand("chat", {
             if channelmatch then
                 channel = channelmatch:lower()
             end
-            
             local formatmatch = options:match('format%s*==%s*(%w+)')
             if formatmatch and formatmatch:lower() == "l33t" then
                 usel33t = true
@@ -1345,7 +1438,6 @@ RegisterCommand("chat", {
                 usel33t = true
             end
         end
-        
         if usel33t then
             local result = ""
             for i = 1, #message do
@@ -1358,12 +1450,10 @@ RegisterCommand("chat", {
             end
             message = result
         end
-        
         if channel ~= "normal" and channel ~= "system" and channel ~= "n" and channel ~= "s" then
             TextChatService.TextChannels.channel:SendAsync(message)
             return true, "非roblox官方频道，尝试发送消息到输入的频道"
         end
-
         if channel == "system" or channel == "s" then
             local success, err = pcall(function()
                 TextChatService.TextChannels.RBXSystem:SendAsync(message)
@@ -1382,38 +1472,6 @@ RegisterCommand("chat", {
             else
                 return false, "发送失败：" .. tostring(err)
             end
-        end
-        
-        return false, "未知错误"
-    end
-})
-
-RegisterCommand("consoleconfig", {
-    aliases = {},
-    usage = {";consoleconfig <all|nvi|filter> <值>"},
-    description = "配置控制台显示选项",
-    handler = function(args, _)
-        if #args == 0 then
-            return true, "用法：;consoleconfig <debug|maxdisplay|filter> <值>"
-        end
-        
-        local option = args[1]:lower()
-        if option == "debug" then
-            Config.Console.debuglogs = not Config.Console.debuglogs
-            return true, "已切换显示 NVI 日志：" .. tostring(Config.Console.debuglogs)
-        elseif option == "maxdisplay" and args[2] then
-            local number = tonumber(args[2])
-            if number and number > 0 then
-                Config.Console.maxmessages = number
-                return true, "已设置最大消息数：" .. number
-            else
-                return false, "无效的数值!请输入正整数!"
-            end
-        elseif option == "filter" and args[2] then
-            table.insert(Config.Console.filterkeywords, args[2])
-            return true, "已添加过滤关键词：" .. args[2]
-        else 
-            return false, "用法：;consoleconfig <debug|maxdisplay|filter> <值>"
         end
         return false, "未知错误"
     end
@@ -1449,34 +1507,6 @@ RegisterCommand("help", {
             return true, "已显示指令详情"
         end
         return false, "未知错误"
-    end
-})
-
-RegisterCommand("sit", {
-    aliases = {},
-    usage = {";sit"},
-    description = "让你的角色坐下或站起",
-    handler = function(args, _)
-        local humanoid = Localhum()
-        if humanoid then
-            if humanoid.Sit then
-                humanoid.Sit = false
-                if humanoid.Sit == false then
-                    return true, "角色已站起"
-                else
-                    return false, "设置站起状态失败"
-                end
-            else
-                humanoid.Sit = true
-                if humanoid.Sit == true then
-                    return true, "角色已坐下"
-                else
-                    return false, "设置坐下状态失败"
-                end
-            end
-        else
-            return false, "无法获取角色的 Humanoid，设置坐下状态失败"
-        end
     end
 })
 
@@ -1642,6 +1672,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
     textlabel.ClipsDescendants = false
     textlabel.AutomaticSize = Enum.AutomaticSize.Y
     textlabel.Size = UDim2.new(1, -10, 0, 15)
+    textlabel.ZIndex = 13
     textlabel.Parent = Scroll_ConsoleOutput
     local children = Scroll_ConsoleOutput:GetChildren()
     local labelcount = 0
@@ -1661,8 +1692,6 @@ LogService.MessageOut:Connect(function(message, messagetype)
     end
 end)
 
-local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
-
 TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
     if guistauts == "destroy" or not MainFrame.Visible or not enterpressed then return end
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
@@ -1680,11 +1709,18 @@ TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
     end
 end)
 
+local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
+
 TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if arrowkeypressed and guistauts == "active" and TextBox_ConsoleInput.Text:sub(-1) == ";" then
         TextBox_ConsoleInput.Text = TextBox_ConsoleInput.Text:sub(1, -2)
         arrowkeypressed = false
         return
+    end
+    if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
+        Area_ConsoleInputHint.Visible = true
+    else
+        Area_ConsoleInputHint.Visible = false
     end
 end)
 
@@ -1693,7 +1729,7 @@ UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() and guistauts == "active" then
         MainFrame.Visible = not MainFrame.Visible
         log("GUI 状态已变为：" .. tostring(MainFrame.Visible), "out")
-    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and guistauts == "active" then
         log("按下分号键，正在聚焦命令输入框...", "out")
         TextBox_ConsoleInput:CaptureFocus()
     elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
@@ -1701,7 +1737,7 @@ UserInputService.InputBegan:Connect(function(input)
         arrowkeypressed = true
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
-    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and guistauts == "active" then
         log("查看下一条命令输入...", "out")
         arrowkeypressed = true
         commandhistoryindex += 1
