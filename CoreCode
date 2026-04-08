@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00064"
+VERSION_NUMBER = "00065"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -895,6 +895,121 @@ local function RefreshConsoleDisplay()
     end
 end
 
+local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
+
+local function ExecuteCommand(rawinput: string): (boolean, string?)
+    if guistauts == "destroy" then 
+        log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warn")
+        return false
+    end
+    local input = rawinput:sub(2)
+    local args = {}
+    for arg in input:gmatch("[^%s]+") do
+        table.insert(args, arg)
+    end
+    local parts = args
+    if #parts == 0 then 
+        log("命令输入为空，已忽略", "warn")
+        return false 
+    end
+    local cmdname = parts[1]
+    local args = {}
+    for i = 2, #parts do table.insert(args, parts[i]) end
+    local mainname = commandmap[cmdname]
+    if not mainname then
+        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
+        return false
+    end
+    local cmd = commandlist[mainname]
+    local success, result1, result2 = pcall(cmd.handler, args, rawinput)
+    if not success then
+        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        return false
+    else 
+        table.insert(commandinputlist, rawinput)
+        log("增加命令历史记录: " .. rawinput, "out")
+        commandhistoryindex = #commandinputlist + 1
+        if not result1 then
+            log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
+            return false, result2
+        else 
+            log("执行成功: " .. tostring(result2 or "无返回值"), "out")
+        end
+    end
+    return true, result2
+end
+
+local function RegisterCommand(name: string, config: {
+    aliases: {string}?,
+    usage: {string}?,
+    description: string,
+    handler: (args: {string}, raw: string) -> (boolean, string?)
+})
+    name = name:lower()
+    if not config.description or not config.handler then
+        log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
+        return false
+    end
+    local aliases = {}
+    if config.aliases then
+        for _, alias in ipairs(config.aliases) do
+            table.insert(aliases, alias:lower())
+        end
+    end
+    commandlist[name] = {
+        main = name,
+        aliases = config.aliases or {},
+        usage = config.usage or {"." .. name},
+        description = config.description,
+        handler = config.handler
+    }
+    commandmap[name] = name
+    for _, alias in ipairs(commandlist[name].aliases) do
+        local al = alias:lower()
+        if commandmap[al] then
+            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", al, commandmap[al]), "warn")
+        else
+            commandmap[al] = name
+        end
+    end
+    log("已注册命令：;" .. name .. " (" .. table.concat(commandlist[name].aliases, ", ") .. ")", "out")
+    return true
+end
+
+local function FindCommandMatches()
+    local matches = {}
+    local inputtext = TextBox_ConsoleInput.Text:sub(2)
+    local spacePos = inputtext:find(" ")
+    if spacePos then
+        inputtext = inputtext:sub(1, spacePos - 1)
+    end
+    for cmdname, cmdinfo in pairs(commandlist) do
+        local matched = false
+        local options = {cmdname}
+        for _, alias in ipairs(cmdinfo.aliases or {}) do
+            table.insert(options, alias)
+        end
+
+        for _, commandname in pairs(options) do
+            if commandname:sub(1, #inputtext) == inputtext then
+                matched = true
+                break
+            end
+        end
+
+        if matched then
+            table.insert(matches, {
+                completename = cmdname,
+                displayname = table.concat(options, " / ")
+            })
+        end
+    end
+    table.sort(matches, function(a, b)
+        return a.completename < b.completename
+    end)
+    return matches
+end
+
 local function CreateModuleListButton(text, codename, order)
     local Button = Instance.new("TextButton")
     Button.Name = "Button_" .. codename
@@ -1124,87 +1239,6 @@ end)
 CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, Config.Console.autoscroll, function(status)
     Config.Console.autoscroll = status
 end)
-
-local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
-
-local function ExecuteCommand(rawinput: string): (boolean, string?)
-    if guistauts == "destroy" then 
-        log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warn")
-        return false
-    end
-    local input = rawinput:sub(2)
-    local args = {}
-    for arg in input:gmatch("[^%s]+") do
-        table.insert(args, arg)
-    end
-    local parts = args
-    if #parts == 0 then 
-        log("命令输入为空，已忽略", "warn")
-        return false 
-    end
-    local cmdname = parts[1]:lower()
-    local args = {}
-    for i = 2, #parts do table.insert(args, parts[i]) end
-    local mainname = commandmap[cmdname]
-    if not mainname then
-        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
-        return false
-    end
-    local cmd = commandlist[mainname]
-    local success, result1, result2 = pcall(cmd.handler, args, rawinput)
-    if not success then
-        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
-        return false
-    else 
-        table.insert(commandinputlist, rawinput)
-        log("增加命令历史记录: " .. rawinput, "out")
-        commandhistoryindex = #commandinputlist + 1
-        if not result1 then
-            log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
-            return false, result2
-        else 
-            log("执行成功: " .. tostring(result2 or "无返回值"), "out")
-        end
-    end
-    return true, result2
-end
-
-local function RegisterCommand(name: string, config: {
-    aliases: {string}?,
-    usage: {string}?,
-    description: string,
-    handler: (args: {string}, raw: string) -> (boolean, string?)
-})
-    name = name:lower()
-    if not config.description or not config.handler then
-        log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
-        return false
-    end
-    local aliases = {}
-    if config.aliases then
-        for _, alias in ipairs(config.aliases) do
-            table.insert(aliases, alias:lower())
-        end
-    end
-    commandlist[name] = {
-        main = name,
-        aliases = config.aliases or {},
-        usage = config.usage or {"." .. name},
-        description = config.description,
-        handler = config.handler
-    }
-    commandmap[name] = name
-    for _, alias in ipairs(commandlist[name].aliases) do
-        local al = alias:lower()
-        if commandmap[al] then
-            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", al, commandmap[al]), "warn")
-        else
-            commandmap[al] = name
-        end
-    end
-    log("已注册命令：;" .. name .. " (" .. table.concat(commandlist[name].aliases, ", ") .. ")", "out")
-    return true
-end
 
 RegisterCommand("rejoin", {
     aliases = {"rj"},
@@ -1718,9 +1752,16 @@ TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
         return
     end
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
-        Area_ConsoleInputHint.Visible = true
+        local matches = FindCommandMatches()
+        print("=== 匹配结果 ===")
+        print("匹配数量:", #matches)
+        for i, match in ipairs(matches) do
+            print(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname))
+        end
+        print("================")
+        -- Area_ConsoleInputHint.Visible = true
     else
-        Area_ConsoleInputHint.Visible = false
+        -- Area_ConsoleInputHint.Visible = false
     end
 end)
 
