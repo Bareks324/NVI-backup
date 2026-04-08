@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00065"
+VERSION_NUMBER = "00066"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -979,9 +979,9 @@ end
 local function FindCommandMatches()
     local matches = {}
     local inputtext = TextBox_ConsoleInput.Text:sub(2)
-    local spacePos = inputtext:find(" ")
-    if spacePos then
-        inputtext = inputtext:sub(1, spacePos - 1)
+    local spacepos = inputtext:find(" ")
+    if spacepos then
+        inputtext = inputtext:sub(1, spacepos - 1)
     end
     for cmdname, cmdinfo in pairs(commandlist) do
         local matched = false
@@ -1008,6 +1008,84 @@ local function FindCommandMatches()
         return a.completename < b.completename
     end)
     return matches
+end
+
+local function UpdateHintDisplay()
+    for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+
+    local matches = FindCommandMatches()
+    if #matches == 0 then
+        Area_ConsoleInputHint.Visible = false
+        return
+    elseif #matches > 0 then
+        Area_ConsoleInputHint.Visible = true
+    else
+        Area_ConsoleInputHint.Visible = false
+    end
+    
+    local displaycount = math.min(#matches, 12)
+    local totalheight = displaycount * 20 + 5
+    Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, totalheight)
+    Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 5)
+    for i = 1, displaycount do
+        if not matches[i] then break end
+        local Button = Instance.new("TextButton")
+        Button.Size = UDim2.new(1, -10, 0, 20)
+        Button.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
+        Button.Name = "Button_CommandHint" .. i
+        Button.BackgroundTransparency = 1
+        Button.BorderSizePixel = 0
+        Button.Text = matches[i].displayname
+        Button.Font = Enum.Font.Code
+        Button.TextSize = 14
+        Button.TextXAlignment = Enum.TextXAlignment.Left
+        Button.TextColor3 = COLOR_TEXT_NORMAL
+        Button.ZIndex = 21
+        Button.Parent = Area_ConsoleInputHint
+        local Underline = Instance.new("Frame")
+        Underline.Name = "Underline_CommandHint" .. i
+        Underline.BorderSizePixel = 0
+        Underline.Size = UDim2.new(1, 0, 0, 1)
+        Underline.Position = UDim2.new(0, 0, 0.9, -1)
+        Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
+        Underline.BackgroundTransparency = 1
+        Underline.ZIndex = 21
+        Underline.Parent = Button
+        Button.MouseEnter:Connect(function()
+            if guistauts ~= "destroy" then
+                local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+                tween:Play()
+                local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
+                tween:Play()
+                dragstauts = false
+            end
+        end)
+        Button.MouseLeave:Connect(function()
+            if guistauts ~= "destroy" then
+                local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+                tween:Play()
+                local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
+                tween:Play()
+                dragstauts = true
+            end
+        end)
+        Button.MouseButton1Click:Connect(function()
+            local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
+            if spacepos then 
+                TextBox_ConsoleInput.Text = ";" .. matches[i].completename .. TextBox_ConsoleInput.Text:sub(spacepos)
+            else
+                TextBox_ConsoleInput.Text = ";" .. matches[i].completename
+            end
+            Area_ConsoleInputHint.Visible = false
+            TextBox_ConsoleInput:CaptureFocus() 
+        end)
+    end
 end
 
 local function CreateModuleListButton(text, codename, order)
@@ -1659,7 +1737,6 @@ LogService.MessageOut:Connect(function(message, messagetype)
             return
         end
     end
-    local textlabel = Instance.new("TextLabel")
     local timestamp = os.date("%H:%M:%S")
     if not message then return "" end
     local escapedtext = message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
@@ -1683,31 +1760,32 @@ LogService.MessageOut:Connect(function(message, messagetype)
         timestampcolor = "#FFFF64"
         contentcolor = COLOR_TEXT_YELLOW
     end
-    
-    textlabel:SetAttribute("MessageType", typelabel)
-    
+
     local r = math.floor(contentcolor.R * 255)
     local g = math.floor(contentcolor.G * 255)
     local b = math.floor(contentcolor.B * 255)
     local colorhex = string.format("%02X%02X%02X", r, g, b)
-    textlabel.RichText = true
     local logprefix = string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
     local messagetext = string.format(
         '%s <font color="#%s">%s</font>',
         logprefix, colorhex, escapedtext
     )
-    textlabel.Text = messagetext
-    textlabel.TextSize = 14
-    textlabel.Font = Enum.Font.Code
-    textlabel.BackgroundTransparency = 1
-    textlabel.TextXAlignment = Enum.TextXAlignment.Left
-    textlabel.TextYAlignment = Enum.TextYAlignment.Top
-    textlabel.TextWrapped = true
-    textlabel.ClipsDescendants = false
-    textlabel.AutomaticSize = Enum.AutomaticSize.Y
-    textlabel.Size = UDim2.new(1, -10, 0, 15)
-    textlabel.ZIndex = 13
-    textlabel.Parent = Scroll_ConsoleOutput
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.RichText = true
+    TextLabel.Text = messagetext
+    TextLabel.TextSize = 14
+    TextLabel.Font = Enum.Font.Code
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TextLabel.TextYAlignment = Enum.TextYAlignment.Top
+    TextLabel.TextWrapped = true
+    TextLabel.ClipsDescendants = false
+    TextLabel.AutomaticSize = Enum.AutomaticSize.Y
+    TextLabel.Size = UDim2.new(1, -10, 0, 15)
+    TextLabel.ZIndex = 13
+    TextLabel.Parent = Scroll_ConsoleOutput
+    TextLabel:SetAttribute("MessageType", typelabel)
+
     local children = Scroll_ConsoleOutput:GetChildren()
     local labelcount = 0
     for _, child in ipairs(children) do
@@ -1753,15 +1831,17 @@ TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     end
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
         local matches = FindCommandMatches()
-        print("=== 匹配结果 ===")
-        print("匹配数量:", #matches)
+        log("=== 匹配结果 ===", "out")
+        log("匹配数量:", tostring(#matches), "out")
         for i, match in ipairs(matches) do
-            print(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname))
+            log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
         end
-        print("================")
-        -- Area_ConsoleInputHint.Visible = true
+        log("================", "out")
+        UpdateHintDisplay()
     else
-        -- Area_ConsoleInputHint.Visible = false
+        if Area_ConsoleInputHint.Visible then 
+            Area_ConsoleInputHint.Visible = false
+        end
     end
 end)
 
