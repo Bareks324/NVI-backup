@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00066"
+VERSION_NUMBER = "00067"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1034,7 +1034,7 @@ local function UpdateHintDisplay()
     for i = 1, displaycount do
         if not matches[i] then break end
         local Button = Instance.new("TextButton")
-        Button.Size = UDim2.new(1, -10, 0, 20)
+        Button.Size = UDim2.new(0, GetTextWidth(matches[i].displayname), 0, 20)
         Button.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
         Button.Name = "Button_CommandHint" .. i
         Button.BackgroundTransparency = 1
@@ -1832,7 +1832,7 @@ TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
         local matches = FindCommandMatches()
         log("=== 匹配结果 ===", "out")
-        log("匹配数量:", tostring(#matches), "out")
+        log("匹配数量:" .. tostring(#matches), "out")
         for i, match in ipairs(matches) do
             log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
         end
