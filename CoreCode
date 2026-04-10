@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00067"
+VERSION_NUMBER = "00068"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1318,13 +1318,22 @@ CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, Config.Console.autosc
     Config.Console.autoscroll = status
 end)
 
+RegisterCommand("leave", {
+    aliases = {""},
+    usage = {"leave"},
+    description = "退出当前的服务器",
+    handler = function(_, _)
+        game:Shutdown()
+    end
+})
+
 RegisterCommand("rejoin", {
     aliases = {"rj"},
     usage = {";rejoin"},
     description = "重新加入当前服务器",
     handler = function(_, _)
-        if not TeleportService or not Localplayer() then
-            return false, "重连失败: 无法访问 TeleportService 或 LocalPlayer"
+        if not TeleportService then
+            return false, "重连失败: 无法访问 TeleportService"
         end
         local success, err = pcall(function()
             TeleportService:Teleport(Game.PlaceId, Localplayer())
