@@ -1319,7 +1319,7 @@ CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, Config.Console.autosc
 end)
 
 RegisterCommand("leave", {
-    aliases = {""},
+    aliases = {},
     usage = {"leave"},
     description = "退出当前的服务器",
     handler = function(_, _)
