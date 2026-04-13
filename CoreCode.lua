@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00069"
+VERSION_NUMBER = "00070"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -343,8 +343,9 @@ local function DestroyNvi()
     log("已销毁", "out")
 end
 
-local function GetTextWidth(text)
-    if text == "" then return end
+local function GetTextWidth(text, fontsize, font)
+    if not text or text == "" then return 0 end
+    local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
     local size = TextService:GetTextSize(text, 15, Enum.Font.Code, Vector2.new(10000, 1000))
     return size.X
 end
@@ -898,33 +899,23 @@ end
 local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
 
 local function ExecuteCommand(rawinput: string): (boolean, string?)
-    if guistauts == "destroy" then 
-        log("尝试执行命令，但 GUI 已销毁，丢弃命令: " .. rawinput, "warn")
-        return false
+    if guistauts == "destroy" then return end
+    
+    local parts = {}
+    for part in rawinput:sub(2):gmatch("[^%s]+") do
+        table.insert(parts, part)
     end
-    local input = rawinput:sub(2)
-    local args = {}
-    for arg in input:gmatch("[^%s]+") do
-        table.insert(args, arg)
-    end
-    local parts = args
-    if #parts == 0 then 
-        log("命令输入为空，已忽略", "warn")
-        return false 
-    end
-    local cmdname = parts[1]
-    local args = {}
-    for i = 2, #parts do table.insert(args, parts[i]) end
+    local cmdname, args = parts[1], {table.unpack(parts, 2)}
     local mainname = commandmap[cmdname]
     if not mainname then
         log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
         return false
     end
-    local cmd = commandlist[mainname]
-    local success, result1, result2 = pcall(cmd.handler, args, rawinput)
+
+    local success, result1, result2 = pcall(commandlist[mainname].handler, args, rawinput)
     if not success then
         log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
-        return false
+        return false, result1
     else 
         table.insert(commandinputlist, rawinput)
         log("增加命令历史记录: " .. rawinput, "out")
@@ -936,7 +927,8 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
             log("执行成功: " .. tostring(result2 or "无返回值"), "out")
         end
     end
-    return true, result2
+
+    return result1, result2
 end
 
 local function RegisterCommand(name: string, config: {
@@ -945,17 +937,11 @@ local function RegisterCommand(name: string, config: {
     description: string,
     handler: (args: {string}, raw: string) -> (boolean, string?)
 })
-    name = name:lower()
     if not config.description or not config.handler then
         log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
         return false
     end
-    local aliases = {}
-    if config.aliases then
-        for _, alias in ipairs(config.aliases) do
-            table.insert(aliases, alias:lower())
-        end
-    end
+
     commandlist[name] = {
         main = name,
         aliases = config.aliases or {},
@@ -965,27 +951,27 @@ local function RegisterCommand(name: string, config: {
     }
     commandmap[name] = name
     for _, alias in ipairs(commandlist[name].aliases) do
-        local al = alias:lower()
-        if commandmap[al] then
-            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", al, commandmap[al]), "warn")
+        if commandmap[alias] then
+            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", alias, commandmap[alias]), "warn")
         else
-            commandmap[al] = name
+            commandmap[alias] = name
         end
     end
-    log("已注册命令：;" .. name .. " (" .. table.concat(commandlist[name].aliases, ", ") .. ")", "out")
+
+    local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
+    log("已注册命令：;" .. name .. " (" .. aliasStr .. ")", "out")
+
     return true
 end
 
 local function FindCommandMatches()
-    local matches = {}
-    local inputtext = TextBox_ConsoleInput.Text:sub(2)
+    local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
     local spacepos = inputtext:find(" ")
     if spacepos then
         inputtext = inputtext:sub(1, spacepos - 1)
     end
     for cmdname, cmdinfo in pairs(commandlist) do
-        local matched = false
-        local options = {cmdname}
+        local matched, options = false, {cmdname}
         for _, alias in ipairs(cmdinfo.aliases or {}) do
             table.insert(options, alias)
         end
@@ -1012,12 +998,20 @@ end
 
 local function UpdateHintDisplay()
     for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
-        if child:IsA("TextButton") or child:IsA("Frame") then
+        if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
             child:Destroy()
         end
     end
 
     local matches = FindCommandMatches()
+
+    log("=== 匹配结果 ===", "out")
+    log("匹配数量:" .. tostring(#matches), "out")
+    for i, match in ipairs(matches) do
+        log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
+    end
+    log("================", "out")
+
     if #matches == 0 then
         Area_ConsoleInputHint.Visible = false
         return
@@ -1026,26 +1020,28 @@ local function UpdateHintDisplay()
     else
         Area_ConsoleInputHint.Visible = false
     end
-    
+
     local displaycount = math.min(#matches, 12)
     local totalheight = displaycount * 20 + 5
     Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, totalheight)
     Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 5)
     for i = 1, displaycount do
         if not matches[i] then break end
+
         local Button = Instance.new("TextButton")
-        Button.Size = UDim2.new(0, GetTextWidth(matches[i].displayname), 0, 20)
+        Button.Font = Enum.Font.Code
+        Button.TextSize = 14
+        Button.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, Button.TextSize, Button.Font), 0, 20)
         Button.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
         Button.Name = "Button_CommandHint" .. i
         Button.BackgroundTransparency = 1
         Button.BorderSizePixel = 0
         Button.Text = matches[i].displayname
-        Button.Font = Enum.Font.Code
-        Button.TextSize = 14
         Button.TextXAlignment = Enum.TextXAlignment.Left
         Button.TextColor3 = COLOR_TEXT_NORMAL
         Button.ZIndex = 21
         Button.Parent = Area_ConsoleInputHint
+
         local Underline = Instance.new("Frame")
         Underline.Name = "Underline_CommandHint" .. i
         Underline.BorderSizePixel = 0
@@ -1055,6 +1051,7 @@ local function UpdateHintDisplay()
         Underline.BackgroundTransparency = 1
         Underline.ZIndex = 21
         Underline.Parent = Button
+
         Button.MouseEnter:Connect(function()
             if guistauts ~= "destroy" then
                 local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -1065,6 +1062,7 @@ local function UpdateHintDisplay()
                 dragstauts = false
             end
         end)
+
         Button.MouseLeave:Connect(function()
             if guistauts ~= "destroy" then
                 local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -1075,6 +1073,7 @@ local function UpdateHintDisplay()
                 dragstauts = true
             end
         end)
+
         Button.MouseButton1Click:Connect(function()
             local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
             if spacepos then 
@@ -1097,7 +1096,7 @@ local function CreateModuleListButton(text, codename, order)
     Button.TextColor3 = COLOR_TEXT_NORMAL
     Button.TextSize = 14
     Button.LayoutOrder = order
-    Button.Size = UDim2.new(0, GetTextWidth(text), 0, 24)
+    Button.Size = UDim2.new(0, GetTextWidth(text, Button.TextSize, Button.Font), 0, 24)
     Button.ZIndex = 13
     Button.Parent = Area_ModuleList
     local Underline = Instance.new("Frame")
@@ -1181,7 +1180,7 @@ end
 local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
     local Container = Instance.new("Frame")
     Container.Name = "Container" .. codename
-    Container.Size = UDim2.new(0, GetTextWidth(text) + 30, 0, 24)
+    Container.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 30, 0, 24)
     Container.BackgroundTransparency = 1
     Container.LayoutOrder = order
     Container.ZIndex = 13
@@ -1189,7 +1188,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
 
     local Label = Instance.new("TextLabel")
     Label.Name = "Label" .. codename
-    Label.Size = UDim2.new(0, GetTextWidth(text), 0.9, 0)
+    Label.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code), 0.9, 0)
     Label.Text = text
     Label.BackgroundTransparency = 1
     Label.TextColor3 = COLOR_TEXT_NORMAL
@@ -1201,7 +1200,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
 
     local Button = Instance.new("TextButton")
     Button.Size = UDim2.new(0, 20, 0, 20)
-    Button.Position = UDim2.new(0, GetTextWidth(text) + 5, 0.5, -10)
+    Button.Position = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 5, 0.5, -10)
     Button.BackgroundTransparency = 0.1 
     Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
     Button.BorderColor3 = COLOR_BUTTON_BORDER
@@ -1727,6 +1726,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
     if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
     if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
     if not Scroll_ConsoleOutput or not Scroll_ConsoleOutput.Parent then return end
+    if not message then return "" end
     
     local logtype = "out"
     if messagetype == Enum.MessageType.MessageOutput then
@@ -1746,12 +1746,8 @@ LogService.MessageOut:Connect(function(message, messagetype)
             return
         end
     end
-    local timestamp = os.date("%H:%M:%S")
-    if not message then return "" end
-    local escapedtext = message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-    local typelabel = "OUT"
-    local timestampcolor = "#C8C8C8"
-    local contentcolor = COLOR_TEXT_NORMAL
+    local timestamp, escapedtext = os.date("%H:%M:%S"), message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    local typelabel, timestampcolor, contentcolor = "OUT", "#C8C8C8", COLOR_TEXT_NORMAL
     if logtype == "out" then
         typelabel = "OUT"
         timestampcolor = "#C8C8C8"
@@ -1770,15 +1766,10 @@ LogService.MessageOut:Connect(function(message, messagetype)
         contentcolor = COLOR_TEXT_YELLOW
     end
 
-    local r = math.floor(contentcolor.R * 255)
-    local g = math.floor(contentcolor.G * 255)
-    local b = math.floor(contentcolor.B * 255)
+    local children, labelcount, r, g, b, logprefix = Scroll_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
     local colorhex = string.format("%02X%02X%02X", r, g, b)
-    local logprefix = string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
-    local messagetext = string.format(
-        '%s <font color="#%s">%s</font>',
-        logprefix, colorhex, escapedtext
-    )
+    local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, colorhex, escapedtext)
+
     local TextLabel = Instance.new("TextLabel")
     TextLabel.RichText = true
     TextLabel.Text = messagetext
@@ -1795,8 +1786,6 @@ LogService.MessageOut:Connect(function(message, messagetype)
     TextLabel.Parent = Scroll_ConsoleOutput
     TextLabel:SetAttribute("MessageType", typelabel)
 
-    local children = Scroll_ConsoleOutput:GetChildren()
-    local labelcount = 0
     for _, child in ipairs(children) do
         if child:IsA("TextLabel") then
             labelcount += 1
@@ -1839,13 +1828,6 @@ TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
         return
     end
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
-        local matches = FindCommandMatches()
-        log("=== 匹配结果 ===", "out")
-        log("匹配数量:" .. tostring(#matches), "out")
-        for i, match in ipairs(matches) do
-            log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
-        end
-        log("================", "out")
         UpdateHintDisplay()
     else
         if Area_ConsoleInputHint.Visible then 
@@ -1876,9 +1858,7 @@ UserInputService.InputBegan:Connect(function(input)
     elseif input.KeyCode == Enum.KeyCode.Delete and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() and guistauts == "active" then 
         DestroyNvi()
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistauts == "active" then
-        local mousepos = Vector2.new(input.Position.X, input.Position.Y)
-        local guipos = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y)
-        local guisize = Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
+        local mousepos, guipos, guisize = Vector2.new(input.Position.X, input.Position.Y), Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
         if mousepos.X >= guipos.X and mousepos.X <= guipos.X + guisize.X and
             mousepos.Y >= guipos.Y and mousepos.Y <= guipos.Y + guisize.Y then
             dragging = true
@@ -1895,8 +1875,7 @@ UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement and guistauts == "active" then
         local mousepos = Vector2.new(input.Position.X, input.Position.Y)
         if MainFrame.Visible then
-            local guipos = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y)
-            local guisize = Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
+            local guipos, guisize = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
             if dragging then
                 local newpos = Vector2.new(
                     math.clamp(framestartpos.X + (mousepos.X - dragstartpos.X), 0, Localcam.ViewportSize.X - MainFrame.AbsoluteSize.X),
