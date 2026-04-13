@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00070"
+VERSION_NUMBER = "00071"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -959,7 +959,7 @@ local function RegisterCommand(name: string, config: {
     end
 
     local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
-    log("已注册命令：;" .. name .. " (" .. aliasStr .. ")", "out")
+    log("已注册命令：;" .. name .. " (" .. aliasesstr .. ")", "out")
 
     return true
 end
@@ -996,6 +996,8 @@ local function FindCommandMatches()
     return matches
 end
 
+local hintpressed = false
+
 local function UpdateHintDisplay()
     for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
         if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
@@ -1015,6 +1017,9 @@ local function UpdateHintDisplay()
     if #matches == 0 then
         Area_ConsoleInputHint.Visible = false
         return
+    elseif hintpressed then
+        hintpressed = false
+        Area_ConsoleInputHint.Visible = false
     elseif #matches > 0 then
         Area_ConsoleInputHint.Visible = true
     else
@@ -1081,7 +1086,7 @@ local function UpdateHintDisplay()
             else
                 TextBox_ConsoleInput.Text = ";" .. matches[i].completename
             end
-            Area_ConsoleInputHint.Visible = false
+            hintpressed = true
             TextBox_ConsoleInput:CaptureFocus() 
         end)
     end
