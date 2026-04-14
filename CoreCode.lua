@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00071"
+VERSION_NUMBER = "00072"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -32,8 +32,10 @@ local Config = {
     },
 }
 
+guistauts, dragstauts = "active", true
+
 local function log(text, messagetype)
-    if not Config.Console or not Config.Console.debuglogs then return end
+    if not Config.Console or not Config.Console.debuglogs or guistauts ~= "active" then return end
 
     local mtype = messagetype or "out"
 
@@ -53,6 +55,8 @@ local function log(text, messagetype)
 end
 
 local function Missing(expectedtype: string, value: any, fallback: any)
+    if guistauts ~= "active" then return end
+
     if type(value) == expectedtype then
         return value
     end
@@ -60,6 +64,8 @@ local function Missing(expectedtype: string, value: any, fallback: any)
 end
 
 local function CreateAPI(name: string, fallback: any, ...)
+    if guistauts ~= "active" then return end
+
     local args = {...}
     local api = Missing("function", unpack(args), fallback)
     if not api then
@@ -98,6 +104,8 @@ local function CreateAPI(name: string, fallback: any, ...)
 end
 
 local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchcharacter)
+    if guistauts ~= "active" then return end
+
     timeout = timeout or 60
     basedelay = basedelay or 0.3
     local value = initialvalue
@@ -302,6 +310,8 @@ end, 60, 0.1, true)
 local NavigationHistory = Config.NavigationHistory
 
 function NavigationHistory:Push(entry)
+    if guistauts ~= "active" then return end
+
     if self.nowindex < #self.history then
         for i = #self.history, self.nowindex + 1, -1 do
             table.remove(self.history, i)
@@ -313,6 +323,8 @@ function NavigationHistory:Push(entry)
 end
 
 function NavigationHistory:Back()
+    if guistauts ~= "active" then return end
+
     if self.nowindex <= 1 then
         log("没有更早的导航历史了", "warn")
         return nil
@@ -322,6 +334,8 @@ function NavigationHistory:Back()
 end
 
 function NavigationHistory:Enter()
+    if guistauts ~= "active" then return end
+
     if self.nowindex >= #self.history then
         log("没有更晚的导航历史了", "warn")
         return nil
@@ -330,23 +344,20 @@ function NavigationHistory:Enter()
     return self.history[self.nowindex]
 end
 
-guistauts, dragstauts = "active", true
-
 local function DestroyNvi()
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
     guistauts = "destroy"
-    log("开始销毁...", "out")
+
     if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
-        ScreenGui = nil
     end
-    log("已销毁", "out")
+    log("已销毁NVI", "out")
 end
 
 local function GetTextWidth(text, fontsize, font)
-    if not text or text == "" then return 0 end
+    if not text or text == "" or guistauts ~= "active" then return 0 end
     local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
-    local size = TextService:GetTextSize(text, 15, Enum.Font.Code, Vector2.new(10000, 1000))
+    local size = TextService:GetTextSize(text, fontsize, font, Vector2.new(10000, 1000))
     return size.X
 end
 
@@ -394,9 +405,11 @@ local function GetCustomAsset(assetpath)
 end
 
 if CoreGui:FindFirstChild("NVIScreenGui") then
-    existversion = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version") and CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version").Value or 99999
-    existprefix = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version") and CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Prefix") or "Unknown"
-    existnumber = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version") and CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Number") or "Unknown"
+    if guistauts ~= "active" then return end
+
+    existversion = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version").Value or 99999
+    existprefix = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Prefix") or "Unknown"
+    existnumber = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Number") or "Unknown"
     if tonumber(VERSION_NUMBER) >= tonumber(existversion) then
         log("检测到旧版或错误版本 NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")，正在清理...", "warn")
         CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
@@ -589,12 +602,12 @@ Area_ConsoleInput.ZIndex = 12
 Area_ConsoleInput.Parent = Area_Console
 
 Area_ConsoleInput.MouseEnter:Connect(function()
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
     dragstauts = false
 end)
 
 Area_ConsoleInput.MouseLeave:Connect(function()
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
     dragstauts = true
 end)
 
@@ -702,11 +715,11 @@ UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
 UIListLayout_Console.Parent = Scroll_ConsoleOutput
 
 Scroll_ConsoleOutput.MouseEnter:Connect(function()
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
     dragstauts = false
 end)
 Scroll_ConsoleOutput.MouseLeave:Connect(function()
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
     dragstauts = true
 end)
 
@@ -823,7 +836,8 @@ PlaceHolder_SettingList.Parent = Area_SettingList
 local showsettinglist, showmodulelist = nil, nil
 
 local function UpdateAreaStats()
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
+
     log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
     if showsettinglist ~= nil and
         showsettinglist ~= "console" and
@@ -861,6 +875,7 @@ NavigationHistory:Push("console")
 UpdateAreaStats()
 
 Button_Enter.MouseButton1Click:Connect(function()
+    if guistauts ~= "active" then return end
     local entry = NavigationHistory:Enter()
     if entry then
         showsettinglist = entry
@@ -869,15 +884,16 @@ Button_Enter.MouseButton1Click:Connect(function()
 end)
 
 Button_Back.MouseButton1Click:Connect(function()
-    local entry = NavigationHistory:Back()
-    if entry then
-        showsettinglist = entry
+    if guistauts ~= "active" then return end
+    local back = NavigationHistory:Back()
+    if back then
+        showsettinglist = back
         UpdateAreaStats() 
     end
 end)
 
 local function RefreshConsoleDisplay()
-    if not Scroll_ConsoleOutput then return end
+    if not Scroll_ConsoleOutput or guistauts ~= "active" then return end
     for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
         if child:IsA("TextLabel") then
             local msgtype = child:GetAttribute("MessageType") or "INFO"
@@ -899,7 +915,7 @@ end
 local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
 
 local function ExecuteCommand(rawinput: string): (boolean, string?)
-    if guistauts == "destroy" then return end
+    if guistauts ~= "active" then return end
     
     local parts = {}
     for part in rawinput:sub(2):gmatch("[^%s]+") do
@@ -937,6 +953,8 @@ local function RegisterCommand(name: string, config: {
     description: string,
     handler: (args: {string}, raw: string) -> (boolean, string?)
 })
+    if guistauts ~= "active" then return end
+
     if not config.description or not config.handler then
         log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
         return false
@@ -965,6 +983,8 @@ local function RegisterCommand(name: string, config: {
 end
 
 local function FindCommandMatches()
+    if guistauts ~= "active" then return end
+
     local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
     local spacepos = inputtext:find(" ")
     if spacepos then
@@ -999,6 +1019,8 @@ end
 local hintpressed = false
 
 local function UpdateHintDisplay()
+    if guistauts ~= "active" then return end
+
     for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
         if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
             child:Destroy()
@@ -1058,28 +1080,27 @@ local function UpdateHintDisplay()
         Underline.Parent = Button
 
         Button.MouseEnter:Connect(function()
-            if guistauts ~= "destroy" then
-                local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
-                tween:Play()
-                local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
-                tween:Play()
-                dragstauts = false
-            end
+            if guistauts ~= "active" then return end
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+            tween:Play()
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
+            tween:Play()
+            dragstauts = false
         end)
 
         Button.MouseLeave:Connect(function()
-            if guistauts ~= "destroy" then
-                local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
-                tween:Play()
-                local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
-                tween:Play()
-                dragstauts = true
-            end
+            if guistauts ~= "active" then return end
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            tween:Play()
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
+            tween:Play()
+            dragstauts = true
         end)
 
         Button.MouseButton1Click:Connect(function()
+            if guistauts ~= "active" then return end
             local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
             if spacepos then 
                 TextBox_ConsoleInput.Text = ";" .. matches[i].completename .. TextBox_ConsoleInput.Text:sub(spacepos)
@@ -1093,6 +1114,8 @@ local function UpdateHintDisplay()
 end
 
 local function CreateModuleListButton(text, codename, order)
+    if guistauts ~= "active" then return end
+
     local Button = Instance.new("TextButton")
     Button.Name = "Button_" .. codename
     Button.Text = text
@@ -1104,6 +1127,7 @@ local function CreateModuleListButton(text, codename, order)
     Button.Size = UDim2.new(0, GetTextWidth(text, Button.TextSize, Button.Font), 0, 24)
     Button.ZIndex = 13
     Button.Parent = Area_ModuleList
+
     local Underline = Instance.new("Frame")
     Underline.Name = "Underline_" .. codename
     Underline.BorderSizePixel = 0
@@ -1113,33 +1137,38 @@ local function CreateModuleListButton(text, codename, order)
     Underline.BackgroundTransparency = 1
     Underline.ZIndex = 13
     Underline.Parent = Button
+
     Button.MouseEnter:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
-            tween:Play()
-            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
-            tween:Play()
-            dragstauts = false
-        end
+        if guistauts ~= "active" then return end
+        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+        tween:Play()
+        local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
+        tween:Play()
+        dragstauts = false
     end)
+
     Button.MouseLeave:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
-            tween:Play()
-            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
-            tween:Play()
-            dragstauts = true
-        end
+        if guistauts ~= "active" then return end
+        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+        tween:Play()
+        local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
+        tween:Play()
+        dragstauts = true
     end)
+
     Button.MouseButton1Click:Connect(function()
+        if guistauts ~= "active" then return end
         showmodulelist = codename
     end)
+
     return Button
 end
 
 local function CreateSettingListButton(text, codename, order)
+    if guistauts ~= "active" then return end
+
     local Button = Instance.new("TextButton")
     Button.Name = "Button_" .. codename
     Button.Text = text
@@ -1154,23 +1183,25 @@ local function CreateSettingListButton(text, codename, order)
     Button.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
     Button.ZIndex = 13
     Button.Parent = Area_SettingList
+
     Button.MouseEnter:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
-            tween:Play()
-            dragstauts = false
-        end
+        if guistauts ~= "active" then return end
+        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
+        tween:Play()
+        dragstauts = false
     end)
+
     Button.MouseLeave:Connect(function()
-        if guistauts ~= "destroy" then
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
-            tween:Play()
-            dragstauts = true
-        end
+        if guistauts ~= "active" then return end
+        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+        tween:Play()
+        dragstauts = true
     end)
+
     Button.MouseButton1Click:Connect(function()
+        if guistauts ~= "active" then return end
         if showsettinglist == codename then
             showsettinglist = nil
         else
@@ -1179,10 +1210,13 @@ local function CreateSettingListButton(text, codename, order)
         NavigationHistory:Push(showsettinglist) 
         UpdateAreaStats()
     end)
+
     return Button
 end
 
 local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
+    if guistauts ~= "active" then return end
+
     local Container = Instance.new("Frame")
     Container.Name = "Container" .. codename
     Container.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 30, 0, 24)
@@ -1233,46 +1267,44 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     local buttonstauts = defaultstauts
 
     Container.MouseEnter:Connect(function()
-        if not guistauts ~= "destroy" then return end
+        if guistauts ~= "active" then return end
         dragstauts = false
     end)
 
     Container.MouseLeave:Connect(function()
-        if not guistauts ~= "destroy" then return end
+        if guistauts ~= "active" then return end
         dragstauts = true
     end)
 
     Button.MouseEnter:Connect(function()
-        if not guistauts ~= "destroy" then return end
+        if guistauts ~= "active" then return end
         dragstauts = false
     end)
     Button.MouseLeave:Connect(function()
-        if not guistauts ~= "destroy" then return end
+        if guistauts ~= "active" then return end
         dragstauts = true
     end)
 
     Button.MouseButton1Click:Connect(function()
-    buttonstauts = not buttonstauts
-    local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
-    local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
-    local newtransparency = buttonstauts and 0 or 1
-    TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Size = newsize,
-        Position = newposition,
-        BackgroundTransparency = newtransparency
-    }):Play()
-    
-    if effect then
-        effect(buttonstauts)
-    end
-end)
+        if guistauts ~= "active" then return end
+        buttonstauts = not buttonstauts
+        local newsize, newposition, newtransparency = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0), buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0), buttonstauts and 0 or 1 
+
+        TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = newsize,
+            Position = newposition,
+            BackgroundTransparency = newtransparency
+        }):Play()
+        
+        if effect then
+            effect(buttonstauts)
+        end
+    end)
 
     return {
         Active = function(active)
             buttonstauts = active
-            local newsize = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0)
-            local newposition = buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0)
-            local newtransparency = buttonstauts and 0 or 1 
+            local newsize, newposition, newtransparency = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0), buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0), buttonstauts and 0 or 1 
             
             TweenService:Create(ButtonCore, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = newsize,
@@ -1637,8 +1669,8 @@ RegisterCommand("help", {
 
 local lastframetime = tick()
 
-function UpdateInfo()
-    if guistauts == "destroy" or not MainFrame.Visible then return end
+RunService.Heartbeat:Connect(function()
+    if guistauts ~= "active" or not MainFrame.Visible then return end
 
     local pingtext, pingcolor = "--ms", COLOR_TEXT_NORMAL
     local success, pingvalue = pcall(function()
@@ -1712,12 +1744,10 @@ function UpdateInfo()
         math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
     )
     Text_Info.Text = richtext
-end
-
-RunService.Heartbeat:Connect(UpdateInfo)
+end)
 
 CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttributeChangedSignal("Status"):Connect(function() 
-    if CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status") == "destroy" then 
+    if CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status") == "destroy" and not guistauts ~= "active" then 
         log("收到销毁信号，正在销毁 GUI...", "out")
         DestroyNvi() 
     else 
@@ -1730,7 +1760,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
     if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
     if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
     if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
-    if not Scroll_ConsoleOutput or not Scroll_ConsoleOutput.Parent then return end
+    if not Scroll_ConsoleOutput or guistauts ~= "active" then return end
     if not message then return "" end
     
     local logtype = "out"
@@ -1808,7 +1838,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
 end)
 
 TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
-    if guistauts == "destroy" or not MainFrame.Visible or not enterpressed then return end
+    if guistauts ~= "active" or not MainFrame.Visible or not enterpressed then return end
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
     if text:find("^;") then
         ExecuteCommand(text)
@@ -1827,7 +1857,8 @@ end)
 local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
 
 TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
-    if arrowkeypressed and guistauts == "active" and TextBox_ConsoleInput.Text:sub(-1) == ";" then
+    if guistauts ~= "active" then return end
+    if arrowkeypressed and TextBox_ConsoleInput.Text:sub(-1) == ";" then
         TextBox_ConsoleInput.Text = TextBox_ConsoleInput.Text:sub(1, -2)
         arrowkeypressed = false
         return
@@ -1842,25 +1873,25 @@ TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
 end)
 
 UserInputService.InputBegan:Connect(function(input)
-    if guistauts == "destroy" then return end
-    if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() and guistauts == "active" then
+    if guistauts ~= "active" then return end
+    if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() then
         MainFrame.Visible = not MainFrame.Visible
         log("GUI 状态已变为：" .. tostring(MainFrame.Visible), "out")
-    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("按下分号键，正在聚焦命令输入框...", "out")
         TextBox_ConsoleInput:CaptureFocus()
-    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看上一条命令输入...", "out")
         arrowkeypressed = true
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
-    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and guistauts == "active" then
+    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看下一条命令输入...", "out")
         arrowkeypressed = true
         commandhistoryindex += 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
         TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
-    elseif input.KeyCode == Enum.KeyCode.Delete and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() and guistauts == "active" then 
+    elseif input.KeyCode == Enum.KeyCode.Delete and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() then 
         DestroyNvi()
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistauts == "active" then
         local mousepos, guipos, guisize = Vector2.new(input.Position.X, input.Position.Y), Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
@@ -1876,8 +1907,8 @@ UserInputService.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if guistauts == "destroy" then return end
-    if input.UserInputType == Enum.UserInputType.MouseMovement and guistauts == "active" then
+    if guistauts ~= "active" then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
         local mousepos = Vector2.new(input.Position.X, input.Position.Y)
         if MainFrame.Visible then
             local guipos, guisize = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
@@ -1893,8 +1924,8 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if guistauts == "destroy" then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and guistauts == "active" then
+    if guistauts ~= "active" then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
 end)
