@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00072"
+VERSION_NUMBER = "00073"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -351,7 +351,18 @@ local function DestroyNvi()
     if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
     end
-    log("已销毁NVI", "out")
+
+    local connections = {
+        UserInputService.InputBegan,
+		UserInputService.InputChanged,
+		UserInputService.InputEnded,
+        RunService.Heartbeat,
+    }
+    for _, connection in ipairs(connections) do
+		if connection.Connected then connection:Disconnect() end
+	end
+
+    log("已销毁", "out")
 end
 
 local function GetTextWidth(text, fontsize, font)
