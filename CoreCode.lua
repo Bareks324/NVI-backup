@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00073"
+VERSION_NUMBER = "00074"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -346,8 +346,8 @@ end
 
 local function DestroyNvi()
     if guistauts ~= "active" then return end
+    log("开始销毁", "out")
     guistauts = "destroy"
-
     if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
     end
@@ -362,7 +362,6 @@ local function DestroyNvi()
 		if connection.Connected then connection:Disconnect() end
 	end
 
-    log("已销毁", "out")
 end
 
 local function GetTextWidth(text, fontsize, font)
@@ -373,6 +372,8 @@ local function GetTextWidth(text, fontsize, font)
 end
 
 local function GetCustomAsset(assetpath)
+    if guistauts ~= "active" then return end
+
     if cachedassetpaths[assetpath] then
         return cachedassetpaths[assetpath]
     end
@@ -769,7 +770,7 @@ Area_Title.Parent = MainFrame
 
 local Text_Info = Instance.new("TextLabel")
 Text_Info.Name = "Info_Display"
-Text_Info.Text = "FPS: -- | Ping: --ms | CPU: --% | Position: (X:? Y:? Z:?)"
+Text_Info.Text = "FPS: -- | Ping: --ms | CPU: --% | Memory: --MB |Position: (X:? Y:? Z:?)"
 Text_Info.RichText = true
 Text_Info.TextColor3 = COLOR_TEXT_NORMAL
 Text_Info.TextSize = 14
@@ -1719,6 +1720,17 @@ RunService.Heartbeat:Connect(function()
         cpucolor = COLOR_TEXT_NORMAL
     end
 
+    local memorytext, memorycolor = "--MB", COLOR_TEXT_NORMAL
+    local success, memoryvalue = pcall(function()
+        return math.floor(Stats.PerformanceStats.Memory:GetValue())
+    end)
+    if success and memoryvalue then
+        memorytext = memoryvalue .. "MB"
+    else
+        memorytext = "--MB"
+        memorycolor = COLOR_TEXT_NORMAL
+    end
+
     local fpstext, fpscolor, currenttime = "--", COLOR_TEXT_NORMAL, tick()
     local deltatime = currenttime - lastframetime
     lastframetime = currenttime
@@ -1748,10 +1760,11 @@ RunService.Heartbeat:Connect(function()
     end
 
     local richtext = string.format(
-        "FPS: <font color=\"#%02X%02X%02X\">%s</font> | Ping: <font color=\"#%02X%02X%02X\">%s</font> | CPU: <font color=\"#%02X%02X%02X\">%s</font> | Position: <font color=\"#%02X%02X%02X\">%s</font>",
+        "FPS: <font color=\"#%02X%02X%02X\">%s</font> | Ping: <font color=\"#%02X%02X%02X\">%s</font> | CPU: <font color=\"#%02X%02X%02X\">%s</font> | Memory: <font color=\"#%02X%02X%02X\">%s</font> | Position: <font color=\"#%02X%02X%02X\">%s</font>",
         math.floor(fpscolor.R * 255), math.floor(fpscolor.G * 255), math.floor(fpscolor.B * 255), fpstext,
         math.floor(pingcolor.R * 255), math.floor(pingcolor.G * 255), math.floor(pingcolor.B * 255), pingtext,
         math.floor(cpucolor.R * 255), math.floor(cpucolor.G * 255), math.floor(cpucolor.B * 255), cputext,
+        math.floor(memorycolor.R * 255), math.floor(memorycolor.G * 255), math.floor(memorycolor.B * 255), memorytext,
         math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
     )
     Text_Info.Text = richtext
