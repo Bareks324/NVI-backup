@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00074"
+VERSION_NUMBER = "00075"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -103,7 +103,7 @@ local function CreateAPI(name: string, fallback: any, ...)
     end
 end
 
-local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchcharacter)
+local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchcharacter, valuename)
     if guistauts ~= "active" then return end
 
     timeout = timeout or 60
@@ -130,7 +130,7 @@ local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchc
         end
         
         if value == initialvalue then
-            pcall(log, "值加载超时：" .. tostring(initialvalue) .. " (超过 " .. timeout .. "秒)", "warn")
+            log("值加载超时：" .. tostring(valuename) .. " (超过 " .. timeout .. "秒)", "warn")
         end
     end)
     
@@ -140,7 +140,7 @@ local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchc
             local success, newvalue = pcall(loader)
             if success and newvalue ~= nil then
                 value = newvalue
-                pcall(log, "角色数据已更新", "out")
+                log("角色数据" .. tostring(valuename) .. "已更新", "out")
             end
         end)
     end
@@ -286,26 +286,26 @@ Localcam = Workspace.Camera
 Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue(nil, function()
     return Players and Players.LocalPlayer
-end, nil, 0.1, true) 
+end, nil, 0.1, true, "LocalPlayer") 
 Localchar = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     return player.Character
-end, 60, 0.1, true)
+end, 60, 0.1, true, "Character")
 Localhum = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChildOfClass("Humanoid")
-end, 60, 0.1, true) 
+end, 60, 0.1, true, "Humanoid") 
 Localroot = CreateAsyncValue(nil, function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChild("HumanoidRootPart")
-end, 60, 0.1, true) 
+end, 60, 0.1, true, "HumanoidRootPart") 
 
 local NavigationHistory = Config.NavigationHistory
 
@@ -975,7 +975,7 @@ local function RegisterCommand(name: string, config: {
     commandlist[name] = {
         main = name,
         aliases = config.aliases or {},
-        usage = config.usage or {"." .. name},
+        usage = config.usage or {"无使用方法"},
         description = config.description,
         handler = config.handler
     }
@@ -1067,51 +1067,69 @@ local function UpdateHintDisplay()
     for i = 1, displaycount do
         if not matches[i] then break end
 
-        local Button = Instance.new("TextButton")
-        Button.Font = Enum.Font.Code
-        Button.TextSize = 14
-        Button.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, Button.TextSize, Button.Font), 0, 20)
-        Button.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
-        Button.Name = "Button_CommandHint" .. i
-        Button.BackgroundTransparency = 1
-        Button.BorderSizePixel = 0
-        Button.Text = matches[i].displayname
-        Button.TextXAlignment = Enum.TextXAlignment.Left
-        Button.TextColor3 = COLOR_TEXT_NORMAL
-        Button.ZIndex = 21
-        Button.Parent = Area_ConsoleInputHint
+        local match = matches[i]
+        local cmdinfo = commandlist[match.completename]
+        local usage = cmdinfo and cmdinfo.usage and cmdinfo.usage[1] or "无使用方法"
 
-        local Underline = Instance.new("Frame")
-        Underline.Name = "Underline_CommandHint" .. i
-        Underline.BorderSizePixel = 0
-        Underline.Size = UDim2.new(1, 0, 0, 1)
-        Underline.Position = UDim2.new(0, 0, 0.9, -1)
-        Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
-        Underline.BackgroundTransparency = 1
-        Underline.ZIndex = 21
-        Underline.Parent = Button
+        local HintButton = Instance.new("TextButton")
+        HintButton.Font = Enum.Font.Code
+        HintButton.TextSize = 14
+        HintButton.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, HintButton.TextSize, HintButton.Font), 0, 20)
+        HintButton.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
+        HintButton.Name = "Button_CommandHint" .. i
+        HintButton.BackgroundTransparency = 1
+        HintButton.BorderSizePixel = 0
+        HintButton.Text = matches[i].displayname
+        HintButton.TextXAlignment = Enum.TextXAlignment.Left
+        HintButton.TextColor3 = COLOR_TEXT_NORMAL
+        HintButton.ZIndex = 21
+        HintButton.Parent = Area_ConsoleInputHint
 
-        Button.MouseEnter:Connect(function()
+        local UsageLabel = Instance.new("TextLabel")
+        UsageLabel.Font = Enum.Font.Code
+        UsageLabel.TextSize = 14
+        UsageLabel.Size = UDim2.new(0, GetTextWidth(usage, UsageLabel.TextSize, UsageLabel.Font), 0, 20)
+        UsageLabel.Position = UDim2.new(0.42, 0, 0, 2 + (i - 1) * 20)
+        UsageLabel.Name = "Label_CommandHint" .. i
+        UsageLabel.BackgroundTransparency = 1
+        UsageLabel.BorderSizePixel = 0
+        UsageLabel.Text = usage
+        UsageLabel.TextXAlignment = Enum.TextXAlignment.Right
+        UsageLabel.TextColor3 = COLOR_TEXT_NORMAL
+        UsageLabel.ZIndex = 21
+        UsageLabel.Parent = Area_ConsoleInputHint
+
+        local HintUnderline = Instance.new("Frame")
+        HintUnderline.Name = "Underline_CommandHint" .. i
+        HintUnderline.BorderSizePixel = 0
+        HintUnderline.Size = UDim2.new(1, 0, 0, 1)
+        HintUnderline.Position = UDim2.new(0, 0, 0.9, -1)
+        HintUnderline.BackgroundColor3 = COLOR_TEXT_OVERLAY
+        HintUnderline.BackgroundTransparency = 1
+        HintUnderline.ZIndex = 21
+        HintUnderline.Parent = HintButton
+
+        HintButton.MouseEnter:Connect(function()
             if guistauts ~= "active" then return end
             local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
             tween:Play()
-            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
+            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
             tween:Play()
             dragstauts = false
         end)
 
-        Button.MouseLeave:Connect(function()
+        HintButton.MouseLeave:Connect(function()
             if guistauts ~= "active" then return end
             local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
             tween:Play()
-            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
+            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
             tween:Play()
             dragstauts = true
         end)
 
-        Button.MouseButton1Click:Connect(function()
+        HintButton.MouseButton1Click:Connect(function()
             if guistauts ~= "active" then return end
             local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
             if spacepos then 
@@ -1395,6 +1413,21 @@ RegisterCommand("rejoin", {
     end
 })
 
+RegisterCommand("suicide", {
+    aliases = {"reset"},
+    usage = {";suicide"},
+    description = "重置你的角色",
+    handler = function(args, _)
+        if Localhum() then
+            Localhum().Health = 0
+            return true, "已重生"
+        else
+            return false, "无法获取角色的 Humanoid"
+        end
+        return false, "未知错误"
+    end
+})
+
 RegisterCommand("print", {
     aliases = {"echo"},
     usage = {";print <文本>"},
@@ -1410,7 +1443,7 @@ RegisterCommand("print", {
 })
 
 RegisterCommand("freeze", {
-    aliases = {"frz"},
+    aliases = {},
     usage = {";freeze"},
     description = "冻结你自己!",
     handler = function(_, _)
@@ -1456,7 +1489,7 @@ RegisterCommand("sit", {
 })
 
 RegisterCommand("walkspeed", {
-    aliases = {"sp", "ws", "speed"},
+    aliases = {"ws", "speed"},
     usage = {";walkspeed <数值>"},
     description = "设置角色移动速度",
     handler = function(args, _)
@@ -1583,12 +1616,12 @@ local l33tmap = {
 
 RegisterCommand("chat", {
     aliases = {"say"},
-    usage = {';chat "消息" [channel == <频道>, format == l33t]'},
+    usage = {';chat "消息" [channel == <频道>, format == <模式>]'},
     description = "在聊天中输出内容",
     handler = function(args, rawinput)
         local message = rawinput:match(';chat%s*"([^"]*)"') or rawinput:match(';say%s*"([^"]*)"')
         if not message or message == "" then
-            return false, "命令参数不足：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
+            return false, "命令参数错误：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
         end
         local options = rawinput:match('%[([^%]]+)%]')
         local channel = "normal" 
