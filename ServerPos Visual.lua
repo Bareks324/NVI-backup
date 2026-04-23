@@ -1,5 +1,5 @@
 local Players, RunService, Stats = game:GetService("Players"), game:GetService("RunService"), game:GetService("Stats")
-local LocalPlayer, currentconnection, pingconnection, serverpart, clientpart, cframehistory, isserverpartvisible, isclientpartvisible = Players.LocalPlayer, nil, nil, nil, nil, {}, false, false
+local LocalPlayer, currentconnection, pingconnection, serverpart, clientpart, cframehistory, isserverpartvisible, isclientpartvisible, connections = Players.LocalPlayer, nil, nil, nil, nil, {}, false, false, {}
 local PING_MULTIPLIER, DEALY = 2.1, 0.34
 
 local function CleanUp()
@@ -24,6 +24,13 @@ local function CleanUp()
     isclientpartvisible = false
 end
 
+local function ClearConnections()
+    for _, conn in pairs(connections) do
+        conn:Disconnect()
+    end
+    table.clear(connections)
+end
+
 local function UpdateDelay()
     local dataping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
     DEALY = dataping * PING_MULTIPLIER * 0.001
@@ -32,6 +39,7 @@ end
 
 local function SetupCharacter(character)
     CleanUp()
+    ClearConnections()
     
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
     if not humanoidRootPart then
@@ -61,23 +69,21 @@ local function SetupCharacter(character)
     cPart.Parent = character
     clientpart = cPart
 
-    local ancestryconn
-    ancestryconn = character.AncestryChanged:Connect(function()
+    table.insert(connections, character.AncestryChanged:Connect(function()
         if not character:IsDescendantOf(game) then
             ancestryconn:Disconnect()
             CleanUp()
         end
-    end)
+    end))
 
     UpdateDelay()
-    pingConnection = RunService.Heartbeat:Connect(function()
+    table.insert(connections, RunService.Heartbeat:Connect(function()
         if os.clock() % 1 < 0.02 then 
             UpdateDelay()
         end
-    end)
+    end))
 
-    local heartbeatconn
-    heartbeatconn = RunService.Heartbeat:Connect(function()
+    table.insert(connections, RunService.Heartbeat:Connect(function()
         if not serverpart.Parent or not clientpart.Parent or not humanoidRootPart.Parent then
             heartbeatconn:Disconnect()
             return
@@ -134,7 +140,7 @@ local function SetupCharacter(character)
                 isserverpartvisible = false
             end
         end
-    end)
+    end))
     
     currentconnection = heartbeatconn
 end
