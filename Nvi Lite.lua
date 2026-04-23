@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00075"
+VERSION_NUMBER = "00077"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -32,58 +32,54 @@ local Config = {
     },
 }
 
-guistauts, dragstauts = "active", true
+guistauts, dragstauts, connections = "active", true, {}
 
 local function log(text, messagetype)
     if not Config.Console or not Config.Console.debuglogs or guistauts ~= "active" then return end
-
-    local mtype = messagetype or "out"
-
-    if mtype == "out" and not Config.Console.showoutput then return end
-    if mtype == "warn" and not Config.Console.showwarn then return end
-    if mtype == "error" and not Config.Console.showerror then return end
+    if messagetype == "out" and not Config.Console.showoutput then return end
+    if messagetype == "warn" and not Config.Console.showwarn then return end
+    if messagetype == "error" and not Config.Console.showerror then return end
     
-    if mtype == "error" then 
+    if messagetype == "error" then 
         error("[NVI] " .. text)
-    elseif mtype == "warn" then
+    elseif messagetype == "warn" then
         warn("[NVI]", text)
-    elseif mtype == "out" then
+    elseif messagetype == "out" then
         print("[NVI]", text)
     else 
-        warn("[NVI]", "这个消息属于未知频道!", text)
+        warn("[NVI]", "此消息属于未知频道!", text)
     end
 end
 
 local function Missing(expectedtype: string, value: any, fallback: any)
     if guistauts ~= "active" then return end
-
-    if type(value) == expectedtype then
-        return value
-    end
-    return (type(fallback) == expectedtype) and fallback or nil
+    return (type(value) == expectedtype and value) or 
+           (type(fallback) == expectedtype and fallback) or nil
 end
 
 local function CreateAPI(name: string, fallback: any, ...)
     if guistauts ~= "active" then return end
 
     local args = {...}
-    local api = Missing("function", unpack(args), fallback)
+    local api = Missing("function", table.unpack(args), fallback)
+    
     if not api then
         log("API 未就绪：" .. name .. " (后台重试中)", "warn")
         task.spawn(function()
-            local retries = 0
-            repeat
-                task.wait(2 ^ retries)
-                retries += 1
-                api = Missing("function", unpack(args), fallback)
-            until api or retries > 5
-            if api then
-                log("API 已就绪：" .. name, "out")
-            else
+            for retries = 1, 5 do
+                task.wait(math.min(retries, 3))
+                api = Missing("function", table.unpack(args), fallback)
+                if api then
+                    log("API 已就绪：" .. name, "out")
+                    break
+                end
+            end
+            if not api then
                 log("API 永久失败：" .. name, "error")
             end
         end)
     end
+    
     return function(...)
         if not api then
             log("调用未就绪 API: " .. name .. " (丢弃调用)", "warn")
@@ -91,26 +87,22 @@ local function CreateAPI(name: string, fallback: any, ...)
         end
         local success, result = pcall(api, ...)
         if not success then
-            local cleanError = tostring(result)
-                :gsub("stack traceback:.+", "")
-                :gsub("%s+", " ")
-                :gsub("^%s+", "")
-                :gsub("%s+$", "")
-            log("API 崩溃@" .. name .. ": " .. cleanError, "error")
+            local cleanerror = tostring(result):gsub("stack traceback:.+", ""):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+            log("API 崩溃@" .. name .. ": " .. cleanerror, "error")
             return nil, "API_ERROR"
         end
         return result
     end
 end
 
-local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchcharacter, valuename)
+local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchcharacter)
     if guistauts ~= "active" then return end
 
     timeout = timeout or 60
     basedelay = basedelay or 0.3
-    local value = initialvalue
+    local value = nil
     local connection = nil
-    local starttime = tick()
+    local starttime = os.clock() 
     local expired = false
     
     task.spawn(function()
@@ -121,7 +113,7 @@ local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchc
                 break
             end
             
-            if tick() - starttime >= timeout then
+            if os.clock() - starttime >= timeout then 
                 expired = true
                 break
             end
@@ -129,7 +121,7 @@ local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchc
             task.wait(basedelay)
         end
         
-        if value == initialvalue then
+        if value == nil then
             log("值加载超时：" .. tostring(valuename) .. " (超过 " .. timeout .. "秒)", "warn")
         end
     end)
@@ -140,12 +132,13 @@ local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchc
             local success, newvalue = pcall(loader)
             if success and newvalue ~= nil then
                 value = newvalue
-                log("角色数据" .. tostring(valuename) .. "已更新", "out")
+                log("角色数据 " .. tostring(valuename) .. " 已更新", "out")
             end
         end)
     end
-    
-    return setmetatable({}, {
+
+    local proxy = { __value = function() return value end }
+    return setmetatable(proxy, {
         __call = function() return value end,
         __index = function(_, key)
             return value and value[key]
@@ -153,16 +146,29 @@ local function CreateAsyncValue(initialvalue, loader, timeout, basedelay, watchc
     }), connection
 end
 
+local serviceproxies = {}
+
 Services = setmetatable({}, {
     __index = function(self, name: string)
+        if rawget(self, name) then
+            return rawget(self, name)
+        end
+        
         local success, service = pcall(function()
             return Cloneref(game:GetService(name))
         end)
-        if success then
+        
+        if success and service then
             rawset(self, name, service)
             return service
         end
+
+        if serviceproxies[name] then
+            return serviceproxies[name]
+        end
+        
         log("服务加载失败：" .. name .. " (后台重试)", "warn")
+        
         local proxy = setmetatable({}, {
             __index = function(_, key)
                 log("访问未就绪服务：" .. name .. "." .. key .. " (返回空函数)", "warn")
@@ -173,21 +179,24 @@ Services = setmetatable({}, {
                 return nil, "SERVICE_NOT_READY"
             end
         })
+
+        serviceproxies[name] = proxy
         rawset(self, name, proxy)
+        
         task.spawn(function()
-            local retries = 0
-            repeat
-                task.wait(1 + retries * 0.5)
-                retries += 1
+            for retries = 1, 10 do
+                task.wait(math.min(retries * 0.5, 2))
                 success, service = pcall(function()
                     return game:GetService(name)
                 end)
-            until success or retries > 10
-            if success then
-                service = Cloneref(service)
-                rawset(self, name, service)
-                log("服务已就绪：" .. name, "out")
-            else
+                if success and service then
+                    service = Cloneref(service)
+                    rawset(self, name, service)
+                    log("服务已就绪：" .. name, "out")
+                    break
+                end
+            end
+            if not success then
                 log("服务永久失败：" .. name, "error")
             end
         end)
@@ -262,21 +271,12 @@ Workspace = Services.Workspace
 CoreGui = Services.CoreGui
 Players = Services.Players
 UserInputService = Services.UserInputService
-ContextActionService = Services.ContextActionService
 TweenService = Services.TweenService
-HttpService = Services.HttpService
 RunService = Services.RunService
 TeleportService = Services.TeleportService
-StarterGui = Services.StarterGui
-GuiService = Services.GuiService
 Lighting = Services.Lighting
 ReplicatedStorage = Services.ReplicatedStorage
-GroupService = Services.GroupService
-PathService = Services.PathfindingService
-SoundService = Services.SoundService
 Teams = Services.Teams
-StarterPlayer = Services.StarterPlayer
-MaterialService = Services.MaterialService
 TextService = Services.TextService
 TextChatService = Services.TextChatService
 VoiceChatService = Services.VoiceChatService
@@ -284,28 +284,28 @@ LogService = Services.LogService
 Stats = Services.Stats
 Localcam = Workspace.Camera
 Localmouse = UserInputService:GetMouseLocation()
-Localplayer = CreateAsyncValue(nil, function()
+Localplayer = CreateAsyncValue("LocalPlayer", function()
     return Players and Players.LocalPlayer
-end, nil, 0.1, true, "LocalPlayer") 
-Localchar = CreateAsyncValue(nil, function()
+end, nil, 0.1, false) 
+Localchar = CreateAsyncValue("Character", function()
     local player = Players.LocalPlayer
     if not player then return nil end
     return player.Character
-end, 60, 0.1, true, "Character")
-Localhum = CreateAsyncValue(nil, function()
+end, 60, 0.1, true)
+Localhum = CreateAsyncValue("Humanoid", function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChildOfClass("Humanoid")
-end, 60, 0.1, true, "Humanoid") 
-Localroot = CreateAsyncValue(nil, function()
+end, 60, 0.1, true) 
+Localroot = CreateAsyncValue("HumanoidRootPart", function()
     local player = Players.LocalPlayer
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChild("HumanoidRootPart")
-end, 60, 0.1, true, "HumanoidRootPart") 
+end, 60, 0.1, true) 
 
 local NavigationHistory = Config.NavigationHistory
 
@@ -346,73 +346,80 @@ end
 
 local function DestroyNvi()
     if guistauts ~= "active" then return end
+
     log("开始销毁", "out")
     guistauts = "destroy"
     if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
     end
 
-    local connections = {
-        UserInputService.InputBegan,
-		UserInputService.InputChanged,
-		UserInputService.InputEnded,
-        RunService.Heartbeat,
-    }
     for _, connection in ipairs(connections) do
-		if connection.Connected then connection:Disconnect() end
+		if connection and connection.Connected then connection:Disconnect() end
 	end
 
 end
 
 local function GetTextWidth(text, fontsize, font)
-    if not text or text == "" or guistauts ~= "active" then return 0 end
+    if not text or text == "" or guistauts ~= "active" then return end
     local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
     local size = TextService:GetTextSize(text, fontsize, font, Vector2.new(10000, 1000))
     return size.X
 end
 
-local function GetCustomAsset(assetpath)
-    if guistauts ~= "active" then return end
+local cachedassetpaths = {}
+local failedassets = {}  
+local assetsdownloaded = false
+
+local function TryGetAsset(assetpath: string): string?
+    if not Waxgetcustomasset then return nil end
+    
+    local success, result = pcall(Waxgetcustomasset, assetpath)
+    if success and result and result ~= "" then
+        cachedassetpaths[assetpath] = result
+        return result
+    end
+    return nil
+end
+
+local function GetCustomAsset(assetpath: string): string?
+    if guistauts ~= "active" or not assetpath or assetpath == "" then return end
 
     if cachedassetpaths[assetpath] then
         return cachedassetpaths[assetpath]
     end
-    if type(failedassets) == "table" then
-        for _, failedpath in ipairs(failedassets) do
-            if failedpath == assetpath then
-                return nil
-            end
-        end
-    end
-    if Waxgetcustomasset then
-        local success, result = pcall(function()
-            return Waxgetcustomasset(assetpath)
-        end)
-        if success and result and result ~= "" then
-            cachedassetpaths[assetpath] = result
-            return result
-        end
-    end
-    if assetsdownloaded then
+
+    if failedassets[assetpath] then
         return nil
     end
-    local waitstart = tick()
+
+    local result = TryGetAsset(assetpath)
+    if result then
+        return result
+    end
+
+    if assetsdownloaded then
+        failedassets[assetpath] = true 
+        log("资源获取失败：" .. assetpath, "warn")
+        return nil
+    end
+
+    local waitstart = os.clock()
     while not assetsdownloaded do
-        if tick() - waitstart > 10 then
+        if os.clock() - waitstart > 10 then
+            failedassets[assetpath] = true 
             log("资源等待超时：" .. assetpath, "error")
             return nil
         end
         task.wait(0.1)
     end
-    if Waxgetcustomasset then
-        local success, result = pcall(function()
-            return Waxgetcustomasset(assetpath)
-        end)
-        if success and result and result ~= "" then
-            cachedassetpaths[assetpath] = result
-            return result
-        end
+
+    result = TryGetAsset(assetpath)
+    if result then
+        return result
     end
+
+    failedassets[assetpath] = true
+    log("资源获取失败：" .. assetpath, "warn")
     return nil
 end
 
@@ -770,7 +777,7 @@ Area_Title.Parent = MainFrame
 
 local Text_Info = Instance.new("TextLabel")
 Text_Info.Name = "Info_Display"
-Text_Info.Text = "FPS: -- | Ping: --ms | CPU: --% | Memory: --MB |Position: (X:? Y:? Z:?)"
+Text_Info.Text = "FPS: -- | Ping: --ms | CPU: --% | Memory: --MB | Position: (X:? Y:? Z:?)"
 Text_Info.RichText = true
 Text_Info.TextColor3 = COLOR_TEXT_NORMAL
 Text_Info.TextSize = 14
@@ -1076,7 +1083,7 @@ local function UpdateHintDisplay()
         HintButton.TextSize = 14
         HintButton.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, HintButton.TextSize, HintButton.Font), 0, 20)
         HintButton.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
-        HintButton.Name = "Button_CommandHint" .. i
+        HintButton.Name = "TextButton_CommandHint" .. i
         HintButton.BackgroundTransparency = 1
         HintButton.BorderSizePixel = 0
         HintButton.Text = matches[i].displayname
@@ -1084,20 +1091,6 @@ local function UpdateHintDisplay()
         HintButton.TextColor3 = COLOR_TEXT_NORMAL
         HintButton.ZIndex = 21
         HintButton.Parent = Area_ConsoleInputHint
-
-        local UsageLabel = Instance.new("TextLabel")
-        UsageLabel.Font = Enum.Font.Code
-        UsageLabel.TextSize = 14
-        UsageLabel.Size = UDim2.new(0, GetTextWidth(usage, UsageLabel.TextSize, UsageLabel.Font), 0, 20)
-        UsageLabel.Position = UDim2.new(0.42, 0, 0, 2 + (i - 1) * 20)
-        UsageLabel.Name = "Label_CommandHint" .. i
-        UsageLabel.BackgroundTransparency = 1
-        UsageLabel.BorderSizePixel = 0
-        UsageLabel.Text = usage
-        UsageLabel.TextXAlignment = Enum.TextXAlignment.Right
-        UsageLabel.TextColor3 = COLOR_TEXT_NORMAL
-        UsageLabel.ZIndex = 21
-        UsageLabel.Parent = Area_ConsoleInputHint
 
         local HintUnderline = Instance.new("Frame")
         HintUnderline.Name = "Underline_CommandHint" .. i
@@ -1147,7 +1140,7 @@ local function CreateModuleListButton(text, codename, order)
     if guistauts ~= "active" then return end
 
     local Button = Instance.new("TextButton")
-    Button.Name = "Button_" .. codename
+    Button.Name = "TextButton_ModuleList" .. codename
     Button.Text = text
     Button.BackgroundTransparency = 1
     Button.Font = Enum.Font.Code
@@ -1159,7 +1152,7 @@ local function CreateModuleListButton(text, codename, order)
     Button.Parent = Area_ModuleList
 
     local Underline = Instance.new("Frame")
-    Underline.Name = "Underline_" .. codename
+    Underline.Name = "Underline_ModuleList" .. codename
     Underline.BorderSizePixel = 0
     Underline.Size = UDim2.new(1, 0, 0, 1)
     Underline.Position = UDim2.new(0, 0, 0.9, -1)
@@ -1200,7 +1193,7 @@ local function CreateSettingListButton(text, codename, order)
     if guistauts ~= "active" then return end
 
     local Button = Instance.new("TextButton")
-    Button.Name = "Button_" .. codename
+    Button.Name = "TextButton_SettingList" .. codename
     Button.Text = text
     Button.BackgroundTransparency = 0.7
     Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
@@ -1256,7 +1249,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     Container.Parent = Area_ConsoleSettings
 
     local Label = Instance.new("TextLabel")
-    Label.Name = "Label" .. codename
+    Label.Name = "TextLabel_ButtonText" .. codename
     Label.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code), 0.9, 0)
     Label.Text = text
     Label.BackgroundTransparency = 1
@@ -1267,18 +1260,20 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     Label.ZIndex = 13
     Label.Parent = Container
 
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 20, 0, 20)
-    Button.Position = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 5, 0.5, -10)
-    Button.BackgroundTransparency = 0.1 
-    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
-    Button.BorderColor3 = COLOR_BUTTON_BORDER
-    Button.BorderSizePixel = 1.5
-    Button.Text = ""  
-    Button.ZIndex = 13
-    Button.Parent = Container
+    local ButtonFrame = Instance.new("TextButton")
+    ButtonFrame.Name = "TextButton_ButtonFrame"
+    ButtonFrame.Size = UDim2.new(0, 20, 0, 20)
+    ButtonFrame.Position = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 5, 0.5, -10)
+    ButtonFrame.BackgroundTransparency = 0.1 
+    ButtonFrame.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    ButtonFrame.BorderColor3 = COLOR_BUTTON_BORDER
+    ButtonFrame.BorderSizePixel = 1.5
+    ButtonFrame.Text = ""  
+    ButtonFrame.ZIndex = 13
+    ButtonFrame.Parent = Container
 
     local ButtonCore = Instance.new("Frame")
+    ButtonCore.Name = "Frame_ButtonCore"
     ButtonCore.Size = UDim2.new(0, 0, 0, 0) 
     ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0) 
     ButtonCore.BackgroundColor3 = COLOR_GUI_BORDER
@@ -1292,7 +1287,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
         ButtonCore.BackgroundTransparency = 1
     end
     ButtonCore.ZIndex = 13
-    ButtonCore.Parent = Button
+    ButtonCore.Parent = ButtonFrame
 
     local buttonstauts = defaultstauts
 
@@ -1306,16 +1301,16 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
         dragstauts = true
     end)
 
-    Button.MouseEnter:Connect(function()
+    ButtonFrame.MouseEnter:Connect(function()
         if guistauts ~= "active" then return end
         dragstauts = false
     end)
-    Button.MouseLeave:Connect(function()
+    ButtonFrame.MouseLeave:Connect(function()
         if guistauts ~= "active" then return end
         dragstauts = true
     end)
 
-    Button.MouseButton1Click:Connect(function()
+    ButtonFrame.MouseButton1Click:Connect(function()
         if guistauts ~= "active" then return end
         buttonstauts = not buttonstauts
         local newsize, newposition, newtransparency = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0), buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0), buttonstauts and 0 or 1 
@@ -1442,12 +1437,13 @@ RegisterCommand("print", {
     end
 })
 
+local freezestauts = false
+
 RegisterCommand("freeze", {
     aliases = {},
     usage = {";freeze"},
     description = "冻结你自己!",
     handler = function(_, _)
-        local freezestauts = false
         if Localroot() then freezestauts = Localroot().Anchored end
         if freezestauts == "error" then
             return false, "无法获取角色状态，冻结功能不可用"
@@ -1461,9 +1457,74 @@ RegisterCommand("freeze", {
         if freezestauts then    
             return true, "角色已冻结,再次输入;freeze解冻"
         else
-            return true, "角色已解冻"
+            return true, "角色已解冻,再次输入;freeze冻结"
         end
-        return true, freezestauts and "角色已冻结" or "角色已解冻"
+        return true, freezestauts and "角色已冻结,再次输入;freeze解冻" or "角色已解冻,再次输入;freeze冻结"
+    end
+})
+
+local flightstauts = false
+RegisterCommand("flight", {
+    aliases = {"fly"},
+    usage = {";flight [mode == <模式>, speed == <速度，单位： Studs>]"},
+    description = "小心坠机!",
+    handler = function(args, rawinput)
+        local options, mode, flyspeed = rawinput:match('%[([^%]]+)%]'), "normal", 16
+        if options then
+            local modematch = options:match('mode%s*==%s*(%w+)')
+            if modematch then
+                mode = modematch
+            end
+            local flyspeedmatch = options:match('speed%s*==%s*(%w+)')
+            if flyspeedmatch and typeof(flyspeedmatch) == "number" then
+                flyspeed = flyspeedmatch
+            end
+        end
+        if mode ~= "normal" and mode ~= "platform" and mode ~= "tp" and mode ~= "n" and mode ~= "p" and mode ~= "t" then
+            return false, "没有此飞行模式!"
+        end
+        if mode == "platform" or mode == "p" then
+            
+        elseif mode == "normal" or mode == "n" then
+            local control = { Foward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifer = 1}
+
+            local Attachment = Instance.new("Attachment")
+            Attachment.Name = "Attachment_Fly"
+            Attachment.Parent = Localroot()
+
+            local LinearVelocity = Instance.new("LinearVelocity")
+            LinearVelocity.Name = "LinearVelocity_Fly"
+            LinearVelocity.MaxForce = 100000
+            LinearVelocity.Parent = Localroot()
+
+            local connection_keydown = UserInputService.InputBegan:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Foward = 1
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
+				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
+					control.SpeedModifer = control.SpeedModifer == 1 and 2.5 or 1
+					log("速度模式: " .. (control.SpeedModifer == 2.5 and "快" or "中"))
+				end
+            end)
+
+            local connection_keyup = UserInputService.InputEnded:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Foward = 0
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
+                end
+            end)
+        elseif mode == "tp" or mode == "t" then    
+
+        end
+        return false, "未知错误"
     end
 })
 
@@ -1623,20 +1684,14 @@ RegisterCommand("chat", {
         if not message or message == "" then
             return false, "命令参数错误：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
         end
-        local options = rawinput:match('%[([^%]]+)%]')
-        local channel = "normal" 
-        local usel33t = false
+        local options, channel, usel33t = rawinput:match('%[([^%]]+)%]'), "normal", false
         if options then
             local channelmatch = options:match('channel%s*==%s*(%w+)')
             if channelmatch then
-                channel = channelmatch:lower()
+                channel = channelmatch
             end
             local formatmatch = options:match('format%s*==%s*(%w+)')
-            if formatmatch and formatmatch:lower() == "l33t" then
-                usel33t = true
-            end
-        else
-            if rawinput:match('l33t') then
+            if formatmatch and formatmatch == "l33t" then
                 usel33t = true
             end
         end
@@ -1712,10 +1767,26 @@ RegisterCommand("help", {
     end
 })
 
-local lastframetime = tick()
-
 RunService.Heartbeat:Connect(function()
     if guistauts ~= "active" or not MainFrame.Visible then return end
+
+    local fpstext, fpscolor = "--", COLOR_TEXT_NORMAL
+    local success, fpsvalue = pcall(function()
+        return math.floor(Stats.Workspace.FPS:GetValue())
+    end)
+    if success and fpsvalue then
+        fpstext = fpsvalue
+        if fpsvalue > 50 then
+            fpscolor = COLOR_TEXT_GREEN
+        elseif fpsvalue > 30 then
+            fpscolor = COLOR_TEXT_YELLOW
+        else
+            fpscolor = COLOR_TEXT_RED
+        end
+    else
+        fpstext = "--"
+        fpscolor = COLOR_TEXT_NORMAL
+    end
 
     local pingtext, pingcolor = "--ms", COLOR_TEXT_NORMAL
     local success, pingvalue = pcall(function()
@@ -1762,24 +1833,6 @@ RunService.Heartbeat:Connect(function()
     else
         memorytext = "--MB"
         memorycolor = COLOR_TEXT_NORMAL
-    end
-
-    local fpstext, fpscolor, currenttime = "--", COLOR_TEXT_NORMAL, tick()
-    local deltatime = currenttime - lastframetime
-    lastframetime = currenttime
-    if deltatime > 0.001 then
-        local fps = math.floor(1 / deltatime)
-        fpstext = tostring(fps)
-        if fps > 40 then
-            fpscolor = COLOR_TEXT_GREEN
-        elseif fps > 20 then
-            fpscolor = COLOR_TEXT_YELLOW
-        else
-            fpscolor = COLOR_TEXT_RED
-        end
-    else
-        fpstext = "--"
-        fpscolor = COLOR_TEXT_NORMAL
     end
 
     local postext, poscolor = "(X:? Y:? Z:?)", COLOR_TEXT_OVERLAY
@@ -1878,7 +1931,7 @@ LogService.MessageOut:Connect(function(message, messagetype)
     TextLabel.Parent = Scroll_ConsoleOutput
     TextLabel:SetAttribute("MessageType", typelabel)
 
-    for _, child in ipairs(children) do
+    for _, child in pairs(children) do
         if child:IsA("TextLabel") then
             labelcount += 1
         end
