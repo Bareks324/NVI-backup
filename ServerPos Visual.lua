@@ -1,16 +1,8 @@
 local Players, RunService, Stats = game:GetService("Players"), game:GetService("RunService"), game:GetService("Stats")
-local LocalPlayer, currentconnection, pingconnection, serverpart, clientpart, cframehistory, isserverpartvisible, isclientpartvisible, connections = Players.LocalPlayer, nil, nil, nil, nil, {}, false, false, {}
+local LocalPlayer, connections, serverpart, clientpart, cframehistory, isserverpartvisible, isclientpartvisible = Players.LocalPlayer, {}, nil, nil, {}, false, false
 local PING_MULTIPLIER, DEALY = 2.1, 0.34
 
 local function CleanUp()
-    if currentconnection then
-        currentconnection:Disconnect()
-        currentconnection = nil
-    end
-    if pingconnection then
-        pingconnection:Disconnect()
-        pingconnection = nil
-    end
     if serverpart and serverpart.Parent then
         serverpart:Destroy()
     end
@@ -51,7 +43,7 @@ local function SetupCharacter(character)
     sPart.Name = "ServerPart"
     sPart.Size = Vector3.new(2.2, 2.2, 1.2)
     sPart.Color = Color3.fromRGB(100, 100, 255)
-    sPart.Material = Enum.Material.Air
+    sPart.Material = Enum.Material.SmoothPlastic
     sPart.Transparency = 1
     sPart.CanCollide = false
     sPart.Anchored = true
@@ -62,7 +54,7 @@ local function SetupCharacter(character)
     cPart.Name = "ClientPart"
     cPart.Size = Vector3.new(2.1, 2.1, 1.1)
     cPart.Color = Color3.fromRGB(100, 255, 100)
-    cPart.Material = Enum.Material.Air
+    cPart.Material = Enum.Material.SmoothPlastic
     cPart.Transparency = 1
     cPart.CanCollide = false
     cPart.Anchored = true
@@ -71,27 +63,24 @@ local function SetupCharacter(character)
 
     table.insert(connections, character.AncestryChanged:Connect(function()
         if not character:IsDescendantOf(game) then
-            ancestryconn:Disconnect()
+            ancestryConn:Disconnect()
             CleanUp()
         end
     end))
 
-    UpdateDelay()
-    table.insert(connections, RunService.Heartbeat:Connect(function()
-        if os.clock() % 1 < 0.02 then 
-            UpdateDelay()
-        end
-    end))
-
+    local lastpingupdate = 0
     table.insert(connections, RunService.Heartbeat:Connect(function()
         if not serverpart.Parent or not clientpart.Parent or not humanoidRootPart.Parent then
-            heartbeatconn:Disconnect()
+            ClearConnections()
             return
         end
 
         local currenttime = os.clock()
+        if currenttime - lastpingupdate >= 1 then
+            UpdateDelay()
+            lastpingupdate = currenttime
+        end
         local targettime = currenttime - DEALY
-
         table.insert(cframehistory, {
             time = currenttime,
             cframe = humanoidRootPart.CFrame
@@ -106,7 +95,7 @@ local function SetupCharacter(character)
         local beforedata = nil
         while #cframehistory > 1 do
             local oldest = cframehistory[1]
-            if oldest.time < currenttime - 1.0 then
+            if oldest.time < currenttime - 1 then
                 table.remove(cframehistory, 1)
             elseif oldest.time < targettime then
                 beforedata = table.remove(cframehistory, 1)
@@ -141,8 +130,6 @@ local function SetupCharacter(character)
             end
         end
     end))
-    
-    currentconnection = heartbeatconn
 end
 
 LocalPlayer.CharacterAdded:Connect(SetupCharacter)
