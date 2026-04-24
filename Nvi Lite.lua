@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00077"
+VERSION_NUMBER = "00078"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -101,7 +101,7 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
     timeout = timeout or 60
     basedelay = basedelay or 0.3
     local value = nil
-    local connection = nil
+    local connection_async = nil
     local starttime = os.clock() 
     local expired = false
     
@@ -127,7 +127,7 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
     end)
     
     if watchcharacter and Players and Players.LocalPlayer then
-        connection = Players.LocalPlayer.CharacterAdded:Connect(function()
+        connection_async = Players.LocalPlayer.CharacterAdded:Connect(function()
             task.wait(0.1)
             local success, newvalue = pcall(loader)
             if success and newvalue ~= nil then
@@ -135,6 +135,7 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
                 log("角色数据 " .. tostring(valuename) .. " 已更新", "out")
             end
         end)
+        table.insert(connections, connection_async)
     end
 
     local proxy = { __value = function() return value end }
@@ -143,7 +144,7 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
         __index = function(_, key)
             return value and value[key]
         end
-    }), connection
+    }), connection_async
 end
 
 local serviceproxies = {}
@@ -620,15 +621,15 @@ Area_ConsoleInput.BorderColor3 = COLOR_BUTTON_BORDER
 Area_ConsoleInput.ZIndex = 12
 Area_ConsoleInput.Parent = Area_Console
 
-Area_ConsoleInput.MouseEnter:Connect(function()
+table.insert(connections, Area_ConsoleInput.MouseEnter:Connect(function()
     if guistauts ~= "active" then return end
     dragstauts = false
-end)
+end))
 
-Area_ConsoleInput.MouseLeave:Connect(function()
+table.insert(connections, Area_ConsoleInput.MouseLeave:Connect(function()
     if guistauts ~= "active" then return end
     dragstauts = true
-end)
+end))
 
 local TextBox_ConsoleInput = Instance.new("TextBox")
 TextBox_ConsoleInput.Name = "TextBox_ConsoleInput"
@@ -655,7 +656,7 @@ Area_ConsoleInputHint.Name = "Area_ConsoleInputHint"
 Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, 25)
 Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -30)
 Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
-Area_ConsoleInputHint.BackgroundTransparency = 0
+Area_ConsoleInputHint.BackgroundTransparency = 0.3
 Area_ConsoleInputHint.BorderSizePixel = 0
 Area_ConsoleInputHint.Visible = false
 Area_ConsoleInputHint.ZIndex = 20
@@ -666,8 +667,8 @@ Corner_ConsoleInputHint.CornerRadius = UDim.new(0, 3)
 Corner_ConsoleInputHint.Parent = Area_ConsoleInputHint
 
 local Stroke_ConsoleInputHint = Instance.new("UIStroke")
-Stroke_ConsoleInputHint.Color = COLOR_TEXT_NORMAL
-Stroke_ConsoleInputHint.Thickness = 1
+Stroke_ConsoleInputHint.Color = COLOR_GUI_BORDER
+Stroke_ConsoleInputHint.Thickness = 2
 Stroke_ConsoleInputHint.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 Stroke_ConsoleInputHint.Parent = Area_ConsoleInputHint
 
@@ -733,14 +734,15 @@ UIListLayout_Console.HorizontalAlignment = Enum.HorizontalAlignment.Left
 UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
 UIListLayout_Console.Parent = Scroll_ConsoleOutput
 
-Scroll_ConsoleOutput.MouseEnter:Connect(function()
+table.insert(connections, Scroll_ConsoleOutput.MouseEnter:Connect(function()
     if guistauts ~= "active" then return end
     dragstauts = false
-end)
-Scroll_ConsoleOutput.MouseLeave:Connect(function()
+end))
+
+table.insert(connections, Scroll_ConsoleOutput.MouseLeave:Connect(function()
     if guistauts ~= "active" then return end
     dragstauts = true
-end)
+end))
 
 local Area_Settings = Instance.new("Frame")
 Area_Settings.Name = "Area_Settings"
@@ -893,39 +895,39 @@ showsettinglist = "console"
 NavigationHistory:Push("console")
 UpdateAreaStats()
 
-Button_Enter.MouseButton1Click:Connect(function()
+table.insert(connections, Button_Enter.MouseButton1Click:Connect(function()
     if guistauts ~= "active" then return end
     local entry = NavigationHistory:Enter()
     if entry then
         showsettinglist = entry
         UpdateAreaStats() 
     end
-end)
+end))
 
-Button_Back.MouseButton1Click:Connect(function()
+table.insert(connections, Button_Back.MouseButton1Click:Connect(function()
     if guistauts ~= "active" then return end
     local back = NavigationHistory:Back()
     if back then
         showsettinglist = back
         UpdateAreaStats() 
     end
-end)
+end))
 
 local function RefreshConsoleDisplay()
     if not Scroll_ConsoleOutput or guistauts ~= "active" then return end
     for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
         if child:IsA("TextLabel") then
-            local msgtype = child:GetAttribute("MessageType") or "INFO"
-            if msgtype == "ERROR" then
+            local messagetype = child:GetAttribute("MessageType") or "INFO"
+            if messagetype == "ERROR" then
                 child.Visible = Config.Console.showerror
-            elseif msgtype == "WARN" then
+            elseif messagetype == "WARN" then
                 child.Visible = Config.Console.showwarn
-            elseif msgtype == "OUT" then
+            elseif messagetype == "OUT" then
                 child.Visible = Config.Console.showoutput
-            elseif msgtype == "INFO" then
+            elseif messagetype == "INFO" then
                 child.Visible = Config.Console.showinfo
             else
-                log("未知的消息类型: " .. tostring(msgtype), "warn")
+                log("未知的消息类型: " .. tostring(messagetype), "warn")
             end
         end
     end
@@ -1102,7 +1104,7 @@ local function UpdateHintDisplay()
         HintUnderline.ZIndex = 21
         HintUnderline.Parent = HintButton
 
-        HintButton.MouseEnter:Connect(function()
+        table.insert(connections, HintButton.MouseEnter:Connect(function()
             if guistauts ~= "active" then return end
             local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
@@ -1110,9 +1112,9 @@ local function UpdateHintDisplay()
             local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
             tween:Play()
             dragstauts = false
-        end)
+        end))
 
-        HintButton.MouseLeave:Connect(function()
+        table.insert(connections, HintButton.MouseLeave:Connect(function()
             if guistauts ~= "active" then return end
             local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
@@ -1120,9 +1122,9 @@ local function UpdateHintDisplay()
             local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
             tween:Play()
             dragstauts = true
-        end)
+        end))
 
-        HintButton.MouseButton1Click:Connect(function()
+        table.insert(connections, HintButton.MouseButton1Click:Connect(function()
             if guistauts ~= "active" then return end
             local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
             if spacepos then 
@@ -1132,7 +1134,7 @@ local function UpdateHintDisplay()
             end
             hintpressed = true
             TextBox_ConsoleInput:CaptureFocus() 
-        end)
+        end))
     end
 end
 
@@ -1161,7 +1163,7 @@ local function CreateModuleListButton(text, codename, order)
     Underline.ZIndex = 13
     Underline.Parent = Button
 
-    Button.MouseEnter:Connect(function()
+    table.insert(connections, Button.MouseEnter:Connect(function()
         if guistauts ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
@@ -1169,9 +1171,9 @@ local function CreateModuleListButton(text, codename, order)
         local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
         tween:Play()
         dragstauts = false
-    end)
+    end))
 
-    Button.MouseLeave:Connect(function()
+    table.insert(connections, Button.MouseLeave:Connect(function()
         if guistauts ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
@@ -1179,12 +1181,12 @@ local function CreateModuleListButton(text, codename, order)
         local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
         tween:Play()
         dragstauts = true
-    end)
+    end))
 
-    Button.MouseButton1Click:Connect(function()
+    table.insert(connections, Button.MouseButton1Click:Connect(function()
         if guistauts ~= "active" then return end
         showmodulelist = codename
-    end)
+    end))
 
     return Button
 end
@@ -1207,23 +1209,23 @@ local function CreateSettingListButton(text, codename, order)
     Button.ZIndex = 13
     Button.Parent = Area_SettingList
 
-    Button.MouseEnter:Connect(function()
+    table.insert(connections, Button.MouseEnter:Connect(function()
         if guistauts ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
         tween:Play()
         dragstauts = false
-    end)
+    end))
 
-    Button.MouseLeave:Connect(function()
+    table.insert(connections, Button.MouseLeave:Connect(function()
         if guistauts ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
         tween:Play()
         dragstauts = true
-    end)
+    end))
 
-    Button.MouseButton1Click:Connect(function()
+    table.insert(connections, Button.MouseButton1Click:Connect(function()
         if guistauts ~= "active" then return end
         if showsettinglist == codename then
             showsettinglist = nil
@@ -1232,7 +1234,7 @@ local function CreateSettingListButton(text, codename, order)
         end
         NavigationHistory:Push(showsettinglist) 
         UpdateAreaStats()
-    end)
+    end))
 
     return Button
 end
@@ -1291,26 +1293,27 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
 
     local buttonstauts = defaultstauts
 
-    Container.MouseEnter:Connect(function()
+    table.insert(connections, Container.MouseEnter:Connect(function()
         if guistauts ~= "active" then return end
         dragstauts = false
-    end)
+    end))
 
-    Container.MouseLeave:Connect(function()
+    table.insert(connections, Container.MouseLeave:Connect(function()
         if guistauts ~= "active" then return end
         dragstauts = true
-    end)
+    end))
 
-    ButtonFrame.MouseEnter:Connect(function()
+    table.insert(connections, ButtonFrame.MouseEnter:Connect(function()
         if guistauts ~= "active" then return end
         dragstauts = false
-    end)
-    ButtonFrame.MouseLeave:Connect(function()
+    end))
+
+    table.insert(connections, ButtonFrame.MouseLeave:Connect(function()
         if guistauts ~= "active" then return end
         dragstauts = true
-    end)
+    end))
 
-    ButtonFrame.MouseButton1Click:Connect(function()
+    table.insert(connections, ButtonFrame.MouseButton1Click:Connect(function()
         if guistauts ~= "active" then return end
         buttonstauts = not buttonstauts
         local newsize, newposition, newtransparency = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0), buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0), buttonstauts and 0 or 1 
@@ -1324,7 +1327,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
         if effect then
             effect(buttonstauts)
         end
-    end)
+    end))
 
     return {
         Active = function(active)
@@ -1463,67 +1466,145 @@ RegisterCommand("freeze", {
     end
 })
 
-local flightstauts = false
+local flightstauts, flightconnections = nil, {}
+
+local function StopFlight() 
+    if flightstauts == "normal" then 
+        local root = Localroot()
+        if root then
+            local LinearVelocity = root:FindFirstChild("LinearVelocity_Flight")
+            if LinearVelocity then 
+                LinearVelocity:Destroy() 
+            end
+            local Attachment = root:FindFirstChild("Attachment_Flight")
+            if Attachment then 
+                Attachment:Destroy() 
+            end
+
+            for _, connection in ipairs(flightconnections) do
+                if connection and connection.Connected then
+                    connection:Disconnect()
+                end
+            end
+
+            flightstauts, flightconnections = nil, {}
+        end
+        return true
+    end
+end
+
 RegisterCommand("flight", {
     aliases = {"fly"},
     usage = {";flight [mode == <模式>, speed == <速度，单位： Studs>]"},
     description = "小心坠机!",
     handler = function(args, rawinput)
+        local root = Localroot()
+        if not root then
+            return false, "无法获取 HumanoidRootPart，请确保角色已加载"
+        end
+
+        if root:FindFirstChild("LinearVelocity_Flight") and root:FindFirstChild("Attachment_Flight") then 
+            flightstauts = "normal"
+        end
+        
         local options, mode, flyspeed = rawinput:match('%[([^%]]+)%]'), "normal", 16
         if options then
             local modematch = options:match('mode%s*==%s*(%w+)')
             if modematch then
                 mode = modematch
             end
-            local flyspeedmatch = options:match('speed%s*==%s*(%w+)')
-            if flyspeedmatch and typeof(flyspeedmatch) == "number" then
-                flyspeed = flyspeedmatch
+            local flyspeedmatch = options:match('speed%s*==%s*(%d+)')
+            if flyspeedmatch then
+                flyspeed = tonumber(flyspeedmatch) or 16
             end
         end
         if mode ~= "normal" and mode ~= "platform" and mode ~= "tp" and mode ~= "n" and mode ~= "p" and mode ~= "t" then
             return false, "没有此飞行模式!"
         end
-        if mode == "platform" or mode == "p" then
+
+        if mode == "normal" or mode == "n" then
+            if flightstauts == "normal" then
+                StopFlight()
+                return true, "飞行(普通模式)已关闭"
+            end
             
-        elseif mode == "normal" or mode == "n" then
-            local control = { Foward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifer = 1}
+            local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
             local Attachment = Instance.new("Attachment")
-            Attachment.Name = "Attachment_Fly"
-            Attachment.Parent = Localroot()
+            Attachment.Name = "Attachment_Flight"
+            Attachment.Parent = root
 
             local LinearVelocity = Instance.new("LinearVelocity")
-            LinearVelocity.Name = "LinearVelocity_Fly"
-            LinearVelocity.MaxForce = 100000
-            LinearVelocity.Parent = Localroot()
+            LinearVelocity.Name = "LinearVelocity_Flight"
+            LinearVelocity.MaxForce = 1e9
+            LinearVelocity.Parent = root
+            LinearVelocity.Attachment0 = Attachment 
 
-            local connection_keydown = UserInputService.InputBegan:Connect(function(input)
+            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+                if not root or not LinearVelocity.Parent then
+                    StopFlight()
+                    return false, "目前状态无法开始飞行"
+                end
+                
+                local look, right, movedirection = Vector3.new(Localcam.CFrame.LookVector.X, 0, Localcam.CFrame.LookVector.Z).Unit, Vector3.new(Localcam.CFrame.RightVector.X, 0, Localcam.CFrame.RightVector.Z).Unit, Vector3.new()
+			    if look.Magnitude == 0 then 
+                    look = Vector3.new(1, 0, 0) 
+                end
+
+                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
+                    control.Left ~= 0 or control.Right ~= 0 or 
+                    control.Up ~= 0 or control.Down ~= 0
+                local forward, strafe, vertical = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down
+
+                if forward ~= 0 or strafe ~= 0 then
+                    movedirection += look * forward + right * strafe
+                end
+
+                if hasinput then
+                    local velocity = Vector3.new()
+                    if movedirection.Magnitude > 0 then
+                        velocity += movedirection.Unit * flyspeed * control.SpeedModifier
+                    end
+                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
+                    LinearVelocity.VectorVelocity = velocity
+                else
+                    LinearVelocity.VectorVelocity = Vector3.new(0, 0, 0)
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.W then control.Foward = 1
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
 				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
 				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
 				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
 				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
-					control.SpeedModifer = control.SpeedModifer == 1 and 2.5 or 1
-					log("速度模式: " .. (control.SpeedModifer == 2.5 and "快" or "中"))
+					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
+					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
 				end
-            end)
+            end))
 
-            local connection_keyup = UserInputService.InputEnded:Connect(function(input)
+            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.W then control.Foward = 0
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
 				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
 				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
 				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
                 end
-            end)
-        elseif mode == "tp" or mode == "t" then    
+            end))
 
+            flightstauts = "normal"
+            return true, "飞行(普通模式)已打开"
         end
+        -- elseif mode == "platform" or mode == "p" then
+            
+        -- elseif mode == "tp" or mode == "t" then    
+
+        -- end
         return false, "未知错误"
     end
 })
@@ -1767,7 +1848,7 @@ RegisterCommand("help", {
     end
 })
 
-RunService.Heartbeat:Connect(function()
+table.insert(connections, RunService.Heartbeat:Connect(function()
     if guistauts ~= "active" or not MainFrame.Visible then return end
 
     local fpstext, fpscolor = "--", COLOR_TEXT_NORMAL
@@ -1854,18 +1935,18 @@ RunService.Heartbeat:Connect(function()
         math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
     )
     Text_Info.Text = richtext
-end)
+end))
 
-CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttributeChangedSignal("Status"):Connect(function() 
+table.insert(connections, CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttributeChangedSignal("Status"):Connect(function() 
     if CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status") == "destroy" and not guistauts ~= "active" then 
         log("收到销毁信号，正在销毁 GUI...", "out")
         DestroyNvi() 
     else 
         log("收到其它信号，当前状态为：" .. tostring(CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status")), "out")
     end 
-end)
+end))
 
-LogService.MessageOut:Connect(function(message, messagetype)
+table.insert(connections, LogService.MessageOut:Connect(function(message, messagetype)
     if messagetype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
     if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
     if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
@@ -1945,9 +2026,9 @@ LogService.MessageOut:Connect(function(message, messagetype)
     if Config.Console.autoscroll then
         Scroll_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
     end
-end)
+end))
 
-TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
+table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
     if guistauts ~= "active" or not MainFrame.Visible or not enterpressed then return end
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
     if text:find("^;") then
@@ -1962,11 +2043,11 @@ TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
         TextBox_ConsoleInput.Text = ""
         log("控制台输入：" .. text, "out")
     end
-end)
+end))
 
 local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
 
-TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
+table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if guistauts ~= "active" then return end
     if arrowkeypressed and TextBox_ConsoleInput.Text:sub(-1) == ";" then
         TextBox_ConsoleInput.Text = TextBox_ConsoleInput.Text:sub(1, -2)
@@ -1980,9 +2061,9 @@ TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
             Area_ConsoleInputHint.Visible = false
         end
     end
-end)
+end))
 
-UserInputService.InputBegan:Connect(function(input)
+table.insert(connections, UserInputService.InputBegan:Connect(function(input)
     if guistauts ~= "active" then return end
     if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() then
         MainFrame.Visible = not MainFrame.Visible
@@ -2014,9 +2095,9 @@ UserInputService.InputBegan:Connect(function(input)
             dragging = false
         end
     end
-end)
+end))
 
-UserInputService.InputChanged:Connect(function(input)
+table.insert(connections, UserInputService.InputChanged:Connect(function(input)
     if guistauts ~= "active" then return end
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         local mousepos = Vector2.new(input.Position.X, input.Position.Y)
@@ -2031,14 +2112,13 @@ UserInputService.InputChanged:Connect(function(input)
             end
         end
     end
-end)
+end))
 
-UserInputService.InputEnded:Connect(function(input)
+table.insert(connections, UserInputService.InputEnded:Connect(function(input)
     if guistauts ~= "active" then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
-end)
+end))
 
-script.Name = "NVIScript"
 log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.", "out")
