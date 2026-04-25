@@ -60,15 +60,30 @@ end
 local function CreateAPI(name: string, fallback: any, ...)
     if guistauts ~= "active" then return end
 
-    local args = {...}
-    local api = Missing("function", table.unpack(args), fallback)
+    local args, api = {...}, nil
+
+    for _, candidate in ipairs(args) do
+        if type(candidate) == "function" then
+            api = candidate
+            break
+        end
+    end
+
+    if not api and type(fallback) == "function" then
+        api = fallback
+    end
     
     if not api then
         log("API 未就绪：" .. name .. " (后台重试中)", "warn")
         task.spawn(function()
             for retries = 1, 5 do
                 task.wait(math.min(retries, 3))
-                api = Missing("function", table.unpack(args), fallback)
+                for _, candidate in ipairs(args) do
+                    if type(candidate) == "function" then
+                        api = candidate
+                        break
+                    end
+                end
                 if api then
                     log("API 已就绪：" .. name, "out")
                     break
@@ -268,6 +283,10 @@ Waxgetcustomasset = CreateAPI("Waxgetcustomasset", function() return "" end,
     getcustomasset,
     getsynasset
 )
+Getconnections = CreateAPI("Getconnections", function() end,
+    getconnections,
+    get_signal_cons
+)
 Workspace = Services.Workspace
 CoreGui = Services.CoreGui
 Players = Services.Players
@@ -349,7 +368,6 @@ local function DestroyNvi()
     if guistauts ~= "active" then return end
 
     log("开始销毁", "out")
-    guistauts = "destroy"
     if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
     end
@@ -358,6 +376,10 @@ local function DestroyNvi()
 		if connection and connection.Connected then connection:Disconnect() end
 	end
 
+    StopFlight()
+
+    log("已销毁 :)", "out")
+    guistauts = "destroy"
 end
 
 local function GetTextWidth(text, fontsize, font)
@@ -1490,7 +1512,24 @@ local function StopFlight()
             flightstauts, flightconnections = nil, {}
         end
         return true
+    elseif flightstauts == "tp" then 
+        local root = Localroot()
+        if root then
+            for _, connection in ipairs(flightconnections) do
+                if connection and connection.Connected then
+                    connection:Disconnect()
+                end
+            end
+
+            root.Massless = false
+
+            flightstauts, flightconnections = nil, {}
+        end
+        return true
+    else
+        return false
     end
+    return false
 end
 
 RegisterCommand("flight", {
@@ -1505,6 +1544,8 @@ RegisterCommand("flight", {
 
         if root:FindFirstChild("LinearVelocity_Flight") and root:FindFirstChild("Attachment_Flight") then 
             flightstauts = "normal"
+        elseif root.Massless then
+            flightstauts = "tp"
         end
         
         local options, mode, flyspeed = rawinput:match('%[([^%]]+)%]'), "normal", 16
@@ -1523,7 +1564,7 @@ RegisterCommand("flight", {
         end
 
         if mode == "normal" or mode == "n" then
-            if flightstauts == "normal" then
+            if flightstauts ~= nil then
                 StopFlight()
                 return true, "飞行(普通模式)已关闭"
             end
@@ -1598,12 +1639,83 @@ RegisterCommand("flight", {
             end))
 
             flightstauts = "normal"
-            return true, "飞行(普通模式)已打开"
-        end
-        -- elseif mode == "platform" or mode == "p" then
+            return true, "飞行(普通模式)已打开, 速度: " .. flyspeed
+        elseif mode == "tp" or mode == "t" then  
+            if flightstauts ~= nil then
+                StopFlight()
+                return true, "飞行(传送模式)已关闭"
+            end
             
-        -- elseif mode == "tp" or mode == "t" then    
+            local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
+            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+                if not root then
+                    StopFlight()
+                    return false, "目前状态无法开始飞行"
+                end
+                
+                local look, right, movedirection = Vector3.new(Localcam.CFrame.LookVector.X, 0, Localcam.CFrame.LookVector.Z).Unit, Vector3.new(Localcam.CFrame.RightVector.X, 0, Localcam.CFrame.RightVector.Z).Unit, Vector3.new()
+			    if look.Magnitude == 0 then 
+                    look = Vector3.new(1, 0, 0) 
+                end
+
+                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
+                    control.Left ~= 0 or control.Right ~= 0 or 
+                    control.Up ~= 0 or control.Down ~= 0
+                local forward, strafe, vertical = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down
+
+                if forward ~= 0 or strafe ~= 0 then
+                    movedirection += look * forward + right * strafe
+                end
+
+                if hasinput then
+                    local velocity = Vector3.new()
+                    if movedirection.Magnitude > 0 then
+                        velocity += movedirection.Unit * flyspeed * control.SpeedModifier
+                    end
+                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
+
+                    if not root.Massless then 
+                        root.Massless = true 
+                    end
+
+                    root.CFrame += velocity
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
+				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
+					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
+					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
+				end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
+                end
+            end))
+
+            flightstauts = "tp"
+            return true, "飞行 (传送模式) 已打开，速度：" .. flyspeed
+        else 
+            return false, "未知错误"
+        end
+        
+        -- elseif mode == "platform" or mode == "p" then
+        
         -- end
         return false, "未知错误"
     end
