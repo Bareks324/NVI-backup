@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00078"
+VERSION_NUMBER = "00079"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -15,7 +15,7 @@ COLOR_TEXT_YELLOW = Color3.fromRGB(255, 255, 100)
 COLOR_TEXT_BLUE = Color3.fromRGB(0, 162, 255)
 
 local Config = {
-    Console = {
+    Console = {      
         debuglogs = true,      
         showoutput = true,
         showwarn = true,
@@ -375,8 +375,6 @@ local function DestroyNvi()
     for _, connection in ipairs(connections) do
 		if connection and connection.Connected then connection:Disconnect() end
 	end
-
-    StopFlight()
 
     log("已销毁 :)", "out")
     guistauts = "destroy"
@@ -1566,7 +1564,7 @@ RegisterCommand("flight", {
         if mode == "normal" or mode == "n" then
             if flightstauts ~= nil then
                 StopFlight()
-                return true, "飞行(普通模式)已关闭"
+                return true, "飞行已关闭"
             end
             
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
@@ -1638,12 +1636,16 @@ RegisterCommand("flight", {
                 end
             end))
 
+            for _, connection in ipairs(flightconnections) do
+                table.insert(connections, flightconnections)
+            end
+
             flightstauts = "normal"
             return true, "飞行(普通模式)已打开, 速度: " .. flyspeed
         elseif mode == "tp" or mode == "t" then  
             if flightstauts ~= nil then
                 StopFlight()
-                return true, "飞行(传送模式)已关闭"
+                return true, "飞行已关闭"
             end
             
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
@@ -1671,9 +1673,9 @@ RegisterCommand("flight", {
                 if hasinput then
                     local velocity = Vector3.new()
                     if movedirection.Magnitude > 0 then
-                        velocity += movedirection.Unit * flyspeed * control.SpeedModifier
+                        velocity += movedirection.Unit * flyspeed * control.SpeedModifier * 0.05
                     end
-                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
+                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier * 0.05, 0)
 
                     if not root.Massless then 
                         root.Massless = true 
@@ -1707,6 +1709,10 @@ RegisterCommand("flight", {
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
                 end
             end))
+
+            for _, connection in ipairs(flightconnections) do
+                table.insert(connections, flightconnections)
+            end
 
             flightstauts = "tp"
             return true, "飞行 (传送模式) 已打开，速度：" .. flyspeed
