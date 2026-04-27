@@ -1,6 +1,6 @@
 local Players, RunService, Stats = game:GetService("Players"), game:GetService("RunService"), game:GetService("Stats")
 local LocalPlayer, connections, serverpart, clientpart, cframehistory, isserverpartvisible, isclientpartvisible = Players.LocalPlayer, {}, nil, nil, {}, false, false
-local PING_MULTIPLIER, DEALY = 2.1, 0.34
+local PING_MULTIPLIER, DEALY = 2.05, 0.34
 
 local function CleanUp()
     if serverpart and serverpart.Parent then
@@ -18,7 +18,9 @@ end
 
 local function ClearConnections()
     for _, conn in pairs(connections) do
-        conn:Disconnect()
+        if conn and conn.Connected then
+            conn:Disconnect()
+        end
     end
     table.clear(connections)
 end
@@ -26,7 +28,7 @@ end
 local function UpdateDelay()
     local dataping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
     DEALY = dataping * PING_MULTIPLIER * 0.001
-    print("当前延迟：" .. dataping .. "ms, 碰撞箱延迟：" .. DEALY)
+    -- print("当前延迟：" .. dataping .. "ms, 碰撞箱延迟：" .. DEALY)
 end
 
 local function SetupCharacter(character)
