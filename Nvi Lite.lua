@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00079"
+VERSION_NUMBER = "00080"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -324,7 +324,9 @@ Localroot = CreateAsyncValue("HumanoidRootPart", function()
     if not player then return nil end
     local character = player.Character
     if not character then return nil end
-    return character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return nil end
+    return humanoid.RootPart
 end, 60, 0.1, true) 
 
 local NavigationHistory = Config.NavigationHistory
@@ -489,6 +491,7 @@ MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
 MainFrame.Visible = true
 MainFrame.BackgroundTransparency = 0.15
 MainFrame.ZIndex = 10
+-- Selectable? 
 MainFrame.Parent = ScreenGui
 
 local Corner_MainFrame = Instance.new("UICorner")
@@ -545,6 +548,16 @@ CrossLine_5.Size = UDim2.new(0.2, 0, 0, 3)
 CrossLine_5.Position = UDim2.new(0, 0, 0, 55)
 CrossLine_5.ZIndex = 11
 CrossLine_5.Parent = MainFrame
+
+local Area_MouseOverlay = Instance.new("Frame")
+Area_MouseOverlay.Name = "Area_MouseOverlay"
+Area_MouseOverlay.Size = UDim2.new(0, 100, 0, 30)
+Area_MouseOverlay.Position = UDim2.new(0, 0, 0, 0)
+Area_MouseOverlay.BackgroundColor3 = COLOR_GUI_BACKGROUND
+Area_MouseOverlay.Visible = false
+Area_MouseOverlay.Selectable = false
+Area_MouseOverlay.ZIndex = 12
+Area_MouseOverlay.Parent = MainFrame
 
 local Area_Sidebar = Instance.new("Frame")
 Area_Sidebar.Name = "Area_Sidebar"
@@ -1489,45 +1502,59 @@ RegisterCommand("freeze", {
 local flightstauts, flightconnections = nil, {}
 
 local function StopFlight() 
+    local root = Localroot and Localroot()
+    
     if flightstauts == "normal" then 
-        local root = Localroot()
         if root then
             local LinearVelocity = root:FindFirstChild("LinearVelocity_Flight")
-            if LinearVelocity then 
-                LinearVelocity:Destroy() 
-            end
+            if LinearVelocity then LinearVelocity:Destroy() end
             local Attachment = root:FindFirstChild("Attachment_Flight")
-            if Attachment then 
-                Attachment:Destroy() 
-            end
-
-            for _, connection in ipairs(flightconnections) do
-                if connection and connection.Connected then
-                    connection:Disconnect()
-                end
-            end
-
-            flightstauts, flightconnections = nil, {}
+            if Attachment then Attachment:Destroy() end
         end
-        return true
+        
+        for _, connection in ipairs(flightconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+
+        flightstauts, flightconnections = nil, {}
+        log("飞行 (普通模式) 已关闭", "out")
+        return true, "飞行 (普通模式) 已关闭"
+        
     elseif flightstauts == "tp" then 
-        local root = Localroot()
         if root then
-            for _, connection in ipairs(flightconnections) do
-                if connection and connection.Connected then
-                    connection:Disconnect()
-                end
-            end
-
             root.Massless = false
-
-            flightstauts, flightconnections = nil, {}
         end
-        return true
+        
+        for _, connection in ipairs(flightconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+
+        flightstauts, flightconnections = nil, {}
+        log("飞行 (传送模式) 已关闭", "out")
+        return true, "飞行 (传送模式) 已关闭"
+        
+    elseif flightstauts == "platform" then
+        if root then 
+            local PlatformPart = root:FindFirstChild("PlatformPart_Flight")
+            if PlatformPart then PlatformPart:Destroy() end
+        end
+        
+        for _, connection in ipairs(flightconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+
+        flightstauts, flightconnections = nil, {}
+        log("飞行 (平台模式) 已关闭", "out")
+        return true, "飞行 (平台模式) 已关闭"
     else
-        return false
+        return false, "飞行未开启"
     end
-    return false
 end
 
 RegisterCommand("flight", {
@@ -1537,13 +1564,17 @@ RegisterCommand("flight", {
     handler = function(args, rawinput)
         local root = Localroot()
         if not root then
-            return false, "无法获取 HumanoidRootPart，请确保角色已加载"
+            return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
         end
 
         if root:FindFirstChild("LinearVelocity_Flight") and root:FindFirstChild("Attachment_Flight") then 
             flightstauts = "normal"
         elseif root.Massless then
             flightstauts = "tp"
+        elseif root:FindFirstChild("PlatformPart_Flight") then
+            flightstauts = "platform"
+        else
+            flightstauts = nil
         end
         
         local options, mode, flyspeed = rawinput:match('%[([^%]]+)%]'), "normal", 16
@@ -1637,7 +1668,7 @@ RegisterCommand("flight", {
             end))
 
             for _, connection in ipairs(flightconnections) do
-                table.insert(connections, flightconnections)
+                table.insert(connections, connection)
             end
 
             flightstauts = "normal"
@@ -1711,18 +1742,68 @@ RegisterCommand("flight", {
             end))
 
             for _, connection in ipairs(flightconnections) do
-                table.insert(connections, flightconnections)
+                table.insert(connections, connection)
             end
 
             flightstauts = "tp"
             return true, "飞行 (传送模式) 已打开，速度：" .. flyspeed
+        elseif mode == "platform" or mode == "p" then
+            if flightstauts ~= nil then
+                StopFlight()
+                return true, "飞行已关闭"
+            end
+            
+            local floatvalue = -31
+
+            local PlatformPart = Instance.new("Part")
+            PlatformPart.Name = "PlatformPart_Flight"
+            PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
+            PlatformPart.Anchored = true
+            PlatformPart.CanCollide = true 
+            PlatformPart.Transparency = 0.9
+            PlatformPart.CastShadow = false
+            PlatformPart.CFrame = root.CFrame * CFrame.new(0, floatvalue, 0)
+            PlatformPart.Parent = root
+
+            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+                if not root then
+                    StopFlight()
+                    return false, "目前状态无法开始飞行"
+                else
+                    PlatformPart.CFrame = root.CFrame * CFrame.new(0, floatvalue / 10, 0)
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+				if input.KeyCode == Enum.KeyCode.Space then floatvalue += 5
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then floatvalue -= 15
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.Space then floatvalue -= 5
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then floatvalue += 15
+                end
+            end))
+
+            table.insert(flightconnections, Localhum().Died:Connect(function()
+                if not root then
+                    StopFlight()
+                    return true, "角色死亡, 已结束飞行"
+                end
+            end))
+
+            for _, connection in ipairs(flightconnections) do
+                table.insert(connections, connection)
+            end
+
+            flightstauts = "platform"
+            return true, "飞行 (平台模式) 已打开，速度：" .. flyspeed
         else 
-            return false, "未知错误"
+            return false, "未知飞行模式"
         end
-        
-        -- elseif mode == "platform" or mode == "p" then
-        
-        -- end
         return false, "未知错误"
     end
 })
@@ -1754,7 +1835,7 @@ RegisterCommand("walkspeed", {
     description = "设置角色移动速度",
     handler = function(args, _)
         if #args == 0 then
-            return false, "命令参数不足：;walkspeed <数值>"
+            return false, "命令参数不足: ;walkspeed <数值>"
         end
         local value = tonumber(args[1])
         if not value then
@@ -1782,7 +1863,7 @@ RegisterCommand("jumppower", {
     description = "设置角色跳跃力度",
     handler = function(args, _)
         if #args == 0 then
-            return false, "命令参数不足：;jumppower <数值>"
+            return false, "命令参数不足: ;jumppower <数值>"
         end
         local value = tonumber(args[1])
         if not value then
@@ -1810,7 +1891,7 @@ RegisterCommand("jumpheight", {
     description = "设置角色跳跃高度",
     handler = function(args, _)
         if #args == 0 then
-            return false, "命令参数不足：;jumpheight <数值>"
+            return false, "命令参数不足: ;jumpheight <数值>"
         end
         local value = tonumber(args[1])
         if not value then
