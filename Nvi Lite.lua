@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00080"
+VERSION_NUMBER = "00081"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -966,210 +966,7 @@ local function RefreshConsoleDisplay()
     end
 end
 
-local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
 
-local function ExecuteCommand(rawinput: string): (boolean, string?)
-    if guistauts ~= "active" then return end
-    
-    local parts = {}
-    for part in rawinput:sub(2):gmatch("[^%s]+") do
-        table.insert(parts, part)
-    end
-    local cmdname, args = parts[1], {table.unpack(parts, 2)}
-    local mainname = commandmap[cmdname]
-    if not mainname then
-        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
-        return false
-    end
-
-    local success, result1, result2 = pcall(commandlist[mainname].handler, args, rawinput)
-    if not success then
-        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
-        return false, result1
-    else 
-        table.insert(commandinputlist, rawinput)
-        log("增加命令历史记录: " .. rawinput, "out")
-        commandhistoryindex = #commandinputlist + 1
-        if not result1 then
-            log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
-            return false, result2
-        else 
-            log("执行成功: " .. tostring(result2 or "无返回值"), "out")
-        end
-    end
-
-    return result1, result2
-end
-
-local function RegisterCommand(name: string, config: {
-    aliases: {string}?,
-    usage: {string}?,
-    description: string,
-    handler: (args: {string}, raw: string) -> (boolean, string?)
-})
-    if guistauts ~= "active" then return end
-
-    if not config.description or not config.handler then
-        log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
-        return false
-    end
-
-    commandlist[name] = {
-        main = name,
-        aliases = config.aliases or {},
-        usage = config.usage or {"无使用方法"},
-        description = config.description,
-        handler = config.handler
-    }
-    commandmap[name] = name
-    for _, alias in ipairs(commandlist[name].aliases) do
-        if commandmap[alias] then
-            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", alias, commandmap[alias]), "warn")
-        else
-            commandmap[alias] = name
-        end
-    end
-
-    local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
-    log("已注册命令：;" .. name .. " (" .. aliasesstr .. ")", "out")
-
-    return true
-end
-
-local function FindCommandMatches()
-    if guistauts ~= "active" then return end
-
-    local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
-    local spacepos = inputtext:find(" ")
-    if spacepos then
-        inputtext = inputtext:sub(1, spacepos - 1)
-    end
-    for cmdname, cmdinfo in pairs(commandlist) do
-        local matched, options = false, {cmdname}
-        for _, alias in ipairs(cmdinfo.aliases or {}) do
-            table.insert(options, alias)
-        end
-
-        for _, commandname in pairs(options) do
-            if commandname:sub(1, #inputtext) == inputtext then
-                matched = true
-                break
-            end
-        end
-
-        if matched then
-            table.insert(matches, {
-                completename = cmdname,
-                displayname = table.concat(options, " / ")
-            })
-        end
-    end
-    table.sort(matches, function(a, b)
-        return a.completename < b.completename
-    end)
-    return matches
-end
-
-local hintpressed = false
-
-local function UpdateHintDisplay()
-    if guistauts ~= "active" then return end
-
-    for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
-        if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
-            child:Destroy()
-        end
-    end
-
-    local matches = FindCommandMatches()
-
-    log("=== 匹配结果 ===", "out")
-    log("匹配数量:" .. tostring(#matches), "out")
-    for i, match in ipairs(matches) do
-        log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
-    end
-    log("================", "out")
-
-    if #matches == 0 then
-        Area_ConsoleInputHint.Visible = false
-        return
-    elseif hintpressed then
-        hintpressed = false
-        Area_ConsoleInputHint.Visible = false
-    elseif #matches > 0 then
-        Area_ConsoleInputHint.Visible = true
-    else
-        Area_ConsoleInputHint.Visible = false
-    end
-
-    local displaycount = math.min(#matches, 12)
-    local totalheight = displaycount * 20 + 5
-    Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, totalheight)
-    Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 5)
-    for i = 1, displaycount do
-        if not matches[i] then break end
-
-        local match = matches[i]
-        local cmdinfo = commandlist[match.completename]
-        local usage = cmdinfo and cmdinfo.usage and cmdinfo.usage[1] or "无使用方法"
-
-        local HintButton = Instance.new("TextButton")
-        HintButton.Font = Enum.Font.Code
-        HintButton.TextSize = 14
-        HintButton.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, HintButton.TextSize, HintButton.Font), 0, 20)
-        HintButton.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
-        HintButton.Name = "TextButton_CommandHint" .. i
-        HintButton.BackgroundTransparency = 1
-        HintButton.BorderSizePixel = 0
-        HintButton.Text = matches[i].displayname
-        HintButton.TextXAlignment = Enum.TextXAlignment.Left
-        HintButton.TextColor3 = COLOR_TEXT_NORMAL
-        HintButton.ZIndex = 21
-        HintButton.Parent = Area_ConsoleInputHint
-
-        local HintUnderline = Instance.new("Frame")
-        HintUnderline.Name = "Underline_CommandHint" .. i
-        HintUnderline.BorderSizePixel = 0
-        HintUnderline.Size = UDim2.new(1, 0, 0, 1)
-        HintUnderline.Position = UDim2.new(0, 0, 0.9, -1)
-        HintUnderline.BackgroundColor3 = COLOR_TEXT_OVERLAY
-        HintUnderline.BackgroundTransparency = 1
-        HintUnderline.ZIndex = 21
-        HintUnderline.Parent = HintButton
-
-        table.insert(connections, HintButton.MouseEnter:Connect(function()
-            if guistauts ~= "active" then return end
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
-            tween:Play()
-            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
-            tween:Play()
-            dragstauts = false
-        end))
-
-        table.insert(connections, HintButton.MouseLeave:Connect(function()
-            if guistauts ~= "active" then return end
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
-            tween:Play()
-            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
-            tween:Play()
-            dragstauts = true
-        end))
-
-        table.insert(connections, HintButton.MouseButton1Click:Connect(function()
-            if guistauts ~= "active" then return end
-            local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
-            if spacepos then 
-                TextBox_ConsoleInput.Text = ";" .. matches[i].completename .. TextBox_ConsoleInput.Text:sub(spacepos)
-            else
-                TextBox_ConsoleInput.Text = ";" .. matches[i].completename
-            end
-            hintpressed = true
-            TextBox_ConsoleInput:CaptureFocus() 
-        end))
-    end
-end
 
 local function CreateModuleListButton(text, codename, order)
     if guistauts ~= "active" then return end
@@ -1415,12 +1212,222 @@ CreateConsoleSettingButton("Auto Scroll", "autoscroll", 7, Config.Console.autosc
     Config.Console.autoscroll = status
 end)
 
+local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
+
+local function ExecuteCommand(rawinput: string): (boolean, string?)
+    if guistauts ~= "active" then return end
+    
+    local parts, extra = {}, {}
+    for part in (rawinput:match('%[(.-)%]') or ""):gmatch("([^,]+)") do
+        local value = part:match("^%s*(.-)%s*$")
+        if value ~= "" then table.insert(extra, value) end
+    end
+    for part in rawinput:sub(2):gmatch("[^%s]+") do
+        table.insert(parts, part)
+    end
+    local cmdname, args = parts[1], {table.unpack(parts, 2)}
+    local mainname = commandmap[cmdname]
+    if not mainname then
+        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
+        return false
+    end
+
+    local success, result1, result2 = pcall(commandlist[mainname].handler, args, rawinput, extra)
+    if not success then
+        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        return false, result1
+    else 
+        table.insert(commandinputlist, rawinput)
+        log("增加命令历史记录: " .. rawinput, "out")
+        commandhistoryindex = #commandinputlist + 1
+        if not result1 then
+            log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
+            return false, result2
+        else 
+            log("执行成功: " .. tostring(result2 or "无返回值"), "out")
+        end
+    end
+
+    return result1, result2
+end
+
+local function RegisterCommand(name: string, config: {
+    aliases: {string}?,
+    usage: {string}?,
+    description: string,
+    handler: (args: {string}, raw: string, extra: string?) -> (boolean, string?)
+})
+    if guistauts ~= "active" then return end
+
+    if not config.description or not config.handler then
+        log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
+        return false
+    end
+
+    commandlist[name] = {
+        main = name,
+        aliases = config.aliases or {},
+        usage = config.usage or {"无使用方法"},
+        description = config.description,
+        handler = config.handler
+    }
+    commandmap[name] = name
+    for _, alias in ipairs(commandlist[name].aliases) do
+        if commandmap[alias] then
+            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", alias, commandmap[alias]), "warn")
+        else
+            commandmap[alias] = name
+        end
+    end
+
+    local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
+    log("已注册命令：;" .. name .. " (" .. aliasesstr .. ")", "out")
+
+    return true
+end
+
+local function FindCommandMatches()
+    if guistauts ~= "active" then return end
+
+    local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
+    local spacepos = inputtext:find(" ")
+    if spacepos then
+        inputtext = inputtext:sub(1, spacepos - 1)
+    end
+    for cmdname, cmdinfo in pairs(commandlist) do
+        local matched, options = false, {cmdname}
+        for _, alias in ipairs(cmdinfo.aliases or {}) do
+            table.insert(options, alias)
+        end
+
+        for _, commandname in pairs(options) do
+            if commandname:sub(1, #inputtext) == inputtext then
+                matched = true
+                break
+            end
+        end
+
+        if matched then
+            table.insert(matches, {
+                completename = cmdname,
+                displayname = table.concat(options, " / ")
+            })
+        end
+    end
+    table.sort(matches, function(a, b)
+        return a.completename < b.completename
+    end)
+    return matches
+end
+
+local hintpressed = false
+
+local function UpdateHintDisplay()
+    if guistauts ~= "active" then return end
+
+    for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+
+    local matches = FindCommandMatches()
+
+    log("=== 匹配结果 ===", "out")
+    log("匹配数量:" .. tostring(#matches), "out")
+    for i, match in ipairs(matches) do
+        log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
+    end
+    log("================", "out")
+
+    if #matches == 0 then
+        Area_ConsoleInputHint.Visible = false
+        return
+    elseif hintpressed then
+        hintpressed = false
+        Area_ConsoleInputHint.Visible = false
+    elseif #matches > 0 then
+        Area_ConsoleInputHint.Visible = true
+    else
+        Area_ConsoleInputHint.Visible = false
+    end
+
+    local displaycount = math.min(#matches, 12)
+    local totalheight = displaycount * 20 + 5
+    Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, totalheight)
+    Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 5)
+    for i = 1, displaycount do
+        if not matches[i] then break end
+
+        local match = matches[i]
+        local cmdinfo = commandlist[match.completename]
+        local usage = cmdinfo and cmdinfo.usage and cmdinfo.usage[1] or "无使用方法"
+
+        local HintButton = Instance.new("TextButton")
+        HintButton.Font = Enum.Font.Code
+        HintButton.TextSize = 14
+        HintButton.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, HintButton.TextSize, HintButton.Font), 0, 20)
+        HintButton.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
+        HintButton.Name = "TextButton_CommandHint" .. i
+        HintButton.BackgroundTransparency = 1
+        HintButton.BorderSizePixel = 0
+        HintButton.Text = matches[i].displayname
+        HintButton.TextXAlignment = Enum.TextXAlignment.Left
+        HintButton.TextColor3 = COLOR_TEXT_NORMAL
+        HintButton.ZIndex = 21
+        HintButton.Parent = Area_ConsoleInputHint
+
+        local HintUnderline = Instance.new("Frame")
+        HintUnderline.Name = "Underline_CommandHint" .. i
+        HintUnderline.BorderSizePixel = 0
+        HintUnderline.Size = UDim2.new(1, 0, 0, 1)
+        HintUnderline.Position = UDim2.new(0, 0, 0.9, -1)
+        HintUnderline.BackgroundColor3 = COLOR_TEXT_OVERLAY
+        HintUnderline.BackgroundTransparency = 1
+        HintUnderline.ZIndex = 21
+        HintUnderline.Parent = HintButton
+
+        table.insert(connections, HintButton.MouseEnter:Connect(function()
+            if guistauts ~= "active" then return end
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+            tween:Play()
+            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
+            tween:Play()
+            dragstauts = false
+        end))
+
+        table.insert(connections, HintButton.MouseLeave:Connect(function()
+            if guistauts ~= "active" then return end
+            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            tween:Play()
+            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
+            tween:Play()
+            dragstauts = true
+        end))
+
+        table.insert(connections, HintButton.MouseButton1Click:Connect(function()
+            if guistauts ~= "active" then return end
+            local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
+            if spacepos then 
+                TextBox_ConsoleInput.Text = ";" .. matches[i].completename .. TextBox_ConsoleInput.Text:sub(spacepos)
+            else
+                TextBox_ConsoleInput.Text = ";" .. matches[i].completename
+            end
+            hintpressed = true
+            TextBox_ConsoleInput:CaptureFocus() 
+        end))
+    end
+end
+
 RegisterCommand("leave", {
     aliases = {},
     usage = {"leave"},
     description = "退出当前的服务器",
-    handler = function(_, _)
+    handler = function(_, _, _)
         game:Shutdown()
+        return true, "已退出"
     end
 })
 
@@ -1428,16 +1435,16 @@ RegisterCommand("rejoin", {
     aliases = {"rj"},
     usage = {";rejoin"},
     description = "重新加入当前服务器",
-    handler = function(_, _)
+    handler = function(_, _, _)
         if not TeleportService then
             return false, "重连失败: 无法访问 TeleportService"
         end
         local success, err = pcall(function()
-            TeleportService:Teleport(Game.PlaceId, Localplayer())
+            TeleportService:Teleport(game.PlaceId, Localplayer())
         end)
         if success then
             task.delay(5, DestroyNvi)
-            return true, "正在重连..."
+            return true, "已重连"
         else
             return false, "重连失败: " .. tostring(err)
         end
@@ -1448,7 +1455,7 @@ RegisterCommand("suicide", {
     aliases = {"reset"},
     usage = {";suicide"},
     description = "重置你的角色",
-    handler = function(args, _)
+    handler = function(_, _, _)
         if Localhum() then
             Localhum().Health = 0
             return true, "已重生"
@@ -1463,13 +1470,39 @@ RegisterCommand("print", {
     aliases = {"echo"},
     usage = {";print <文本>"},
     description = "输出文本到控制台",
-    handler = function(args, _)
+    handler = function(args, raw, extra)
         if #args == 0 then
             return false, "命令参数不足：;print <文本>"
         end
-        local message = table.concat(args, " ")
-        print(message)
-        return true, "文本已输出到控制台"
+        local message = raw:match('"([^"]*)"')
+        if not message or message == "" then
+            return false, "参数格式错误：请使用双引号包裹文本，例如 ;print \"Hello World\""
+        end
+        if #extra > 0 then
+            for _, part in ipairs(extra) do
+                local longmatch, shortmatch = part:match("messagetype%s*==%s*(%w+)"), part:match("^%-([ewo])$")
+                local messagetype = longmatch or shortmatch
+                
+                if messagetype then
+                    if messagetype == "error" or messagetype == "e" then
+                        error(message)
+                        return true, "错误消息已发送"
+                    elseif messagetype == "warn" or messagetype == "w" then
+                        warn(message)
+                        return true, "警告消息已发送"
+                    elseif messagetype == "out" or messagetype == "o" then
+                        print(message)
+                        return true, "输出消息已发送"
+                    else
+                        return false, "无效的模式参数: " .. messagetype
+                    end
+                end
+            end
+        else
+            print(message)
+            return true, "输出消息已发送"
+        end
+        return false, "未知错误"
     end
 })
 
@@ -1479,7 +1512,7 @@ RegisterCommand("freeze", {
     aliases = {},
     usage = {";freeze"},
     description = "冻结你自己!",
-    handler = function(_, _)
+    handler = function(_, _, _)
         if Localroot() then freezestauts = Localroot().Anchored end
         if freezestauts == "error" then
             return false, "无法获取角色状态，冻结功能不可用"
@@ -1561,7 +1594,7 @@ RegisterCommand("flight", {
     aliases = {"fly"},
     usage = {";flight [mode == <模式>, speed == <速度，单位： Studs>]"},
     description = "小心坠机!",
-    handler = function(args, rawinput)
+    handler = function(args, rawinput, extra)
         local root = Localroot()
         if not root then
             return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
@@ -1812,7 +1845,7 @@ RegisterCommand("sit", {
     aliases = {},
     usage = {";sit"},
     description = "让你的角色坐下或站起",
-    handler = function(args, _)
+    handler = function(_, _, _)
         if Localhum() then
             Localhum().Sit = not Localhum().Sit
             if Localhum().Sit then
@@ -1833,7 +1866,7 @@ RegisterCommand("walkspeed", {
     aliases = {"ws", "speed"},
     usage = {";walkspeed <数值>"},
     description = "设置角色移动速度",
-    handler = function(args, _)
+    handler = function(args, _, _)
         if #args == 0 then
             return false, "命令参数不足: ;walkspeed <数值>"
         end
@@ -1861,7 +1894,7 @@ RegisterCommand("jumppower", {
     aliases = {"jp"},
     usage = {";jumppower <数值>"},
     description = "设置角色跳跃力度",
-    handler = function(args, _)
+    handler = function(args, _, _)
         if #args == 0 then
             return false, "命令参数不足: ;jumppower <数值>"
         end
@@ -1889,7 +1922,7 @@ RegisterCommand("jumpheight", {
     aliases = {"jh"},
     usage = {";jumpheight <数值>"},
     description = "设置角色跳跃高度",
-    handler = function(args, _)
+    handler = function(args, _, _)
         if #args == 0 then
             return false, "命令参数不足: ;jumpheight <数值>"
         end
@@ -1959,7 +1992,7 @@ RegisterCommand("chat", {
     aliases = {"say"},
     usage = {';chat "消息" [channel == <频道>, format == <模式>]'},
     description = "在聊天中输出内容",
-    handler = function(args, rawinput)
+    handler = function(args, rawinput, _)
         local message = rawinput:match(';chat%s*"([^"]*)"') or rawinput:match(';say%s*"([^"]*)"')
         if not message or message == "" then
             return false, "命令参数错误：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
@@ -2018,7 +2051,7 @@ RegisterCommand("help", {
     aliases = {"?"},
     usage = {";help [指令名]"},
     description = "显示所有指令或查看特定指令的详细信息",
-    handler = function(args, _)
+    handler = function(args, _, _)
         if #args == 0 then
             log("命令格式: <>内为必填项 []内为选填项", "out")
             log("========== 可用指令列表 ==========", "out")
