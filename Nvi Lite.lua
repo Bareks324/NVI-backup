@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00081"
+VERSION_NUMBER = "00082"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1235,11 +1235,13 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
     local success, result1, result2 = pcall(commandlist[mainname].handler, args, rawinput, extra)
     if not success then
         log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "), "out")
         return false, result1
     else 
         table.insert(commandinputlist, rawinput)
         log("增加命令历史记录: " .. rawinput, "out")
         commandhistoryindex = #commandinputlist + 1
+        log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "), "out")
         if not result1 then
             log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
             return false, result2
@@ -1468,39 +1470,55 @@ RegisterCommand("suicide", {
 
 RegisterCommand("print", {
     aliases = {"echo"},
-    usage = {";print <文本>"},
+    usage = {";print <文本> [messagetype == <类型> 或 -e/-w/-o]"},
     description = "输出文本到控制台",
     handler = function(args, raw, extra)
         if #args == 0 then
-            return false, "命令参数不足：;print <文本>"
+            return false, "命令参数不足: ;print <文本> [messagetype == <类型> 或 -e/-w/-o]"
         end
         local message = raw:match('"([^"]*)"')
         if not message or message == "" then
-            return false, "参数格式错误：请使用双引号包裹文本，例如 ;print \"Hello World\""
+            return false, "参数格式错误: 请使用双引号包裹文本，例如 ;print \"Hello World\""
         end
         if #extra > 0 then
+            local longmatched, shortmatched, messagetype = false, false, nil
             for _, part in ipairs(extra) do
-                local longmatch, shortmatch = part:match("messagetype%s*==%s*(%w+)"), part:match("^%-([ewo])$")
-                local messagetype = longmatch or shortmatch
-                
-                if messagetype then
-                    if messagetype == "error" or messagetype == "e" then
-                        error(message)
-                        return true, "错误消息已发送"
-                    elseif messagetype == "warn" or messagetype == "w" then
-                        warn(message)
-                        return true, "警告消息已发送"
-                    elseif messagetype == "out" or messagetype == "o" then
-                        print(message)
-                        return true, "输出消息已发送"
-                    else
-                        return false, "无效的模式参数: " .. messagetype
+                local longmatch, shortmatch = part:match("^messagetype%s*==%s*(%w+)$"), part:match("^%-([ewo])$")
+
+                if longmatch then 
+                    longmatched = true 
+                    messagetype = longmatch
+                end
+
+                if shortmatch then
+                    shortmatched = true
+                    if longmatched then
+                        return false, "配置参数错误: 同时使用了长格式和短格式的消息类型，请选择一种格式"
                     end
+                    messagetype = shortmatch
+                end
+                
+                if not longmatch and not shortmatch then
+                    return false, string.format("配置参数错误: 无法识别 '%s'", part)
+                end
+            end
+            if messagetype then
+                if messagetype == "error" or messagetype == "e" then
+                    error(message)
+                    return true, "错误消息已发送"
+                elseif messagetype == "warn" or messagetype == "w" then
+                    warn(message)
+                    return true, "警告消息已发送"
+                elseif messagetype == "out" or messagetype == "o" then
+                    print(message)                        
+                    return true, "输出消息已发送 (配置指定)"
+                else
+                    return false, "无效的模式参数: " .. messagetype
                 end
             end
         else
             print(message)
-            return true, "输出消息已发送"
+            return true, "输出消息已发送 (普通输出)"
         end
         return false, "未知错误"
     end
