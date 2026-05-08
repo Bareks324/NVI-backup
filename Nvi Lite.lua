@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00082"
+VERSION_NUMBER = "00083"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -302,6 +302,8 @@ TextChatService = Services.TextChatService
 VoiceChatService = Services.VoiceChatService
 LogService = Services.LogService
 Stats = Services.Stats
+PlaceId = game.PlaceId
+JobId = game.JobId
 Localcam = Workspace.Camera
 Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue("LocalPlayer", function()
@@ -454,10 +456,10 @@ if CoreGui:FindFirstChild("NVIScreenGui") then
     existnumber = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Number") or "Unknown"
     if tonumber(VERSION_NUMBER) >= tonumber(existversion) then
         log("检测到旧版或错误版本 NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")，正在清理...", "warn")
-        CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
+        CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Stauts", "destroy")
         if CoreGui:FindFirstChild("NVIScreenGui") then
             log("旧版本似乎未检测到信号，强制销毁... NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")", "out")
-            CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
+            CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Stauts", "destroy")
             CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
         else 
             log("已销毁，继续注入当前版本... NVI (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")", "out")
@@ -481,7 +483,7 @@ Version.Value = VERSION_NUMBER
 Version.Parent = ScreenGui
 Version:SetAttribute("Prefix", VERSION_PREFIX)
 Version:SetAttribute("Number", VERSION_NUMBER)
-Version:SetAttribute("Status", guistauts)
+Version:SetAttribute("Stauts", guistauts)
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "GuiMainFrame"
@@ -491,7 +493,6 @@ MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
 MainFrame.Visible = true
 MainFrame.BackgroundTransparency = 0.15
 MainFrame.ZIndex = 10
--- Selectable? 
 MainFrame.Parent = ScreenGui
 
 local Corner_MainFrame = Instance.new("UICorner")
@@ -1225,6 +1226,7 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
     for part in rawinput:sub(2):gmatch("[^%s]+") do
         table.insert(parts, part)
     end
+
     local cmdname, args = parts[1], {table.unpack(parts, 2)}
     local mainname = commandmap[cmdname]
     if not mainname then
@@ -1262,7 +1264,7 @@ local function RegisterCommand(name: string, config: {
     if guistauts ~= "active" then return end
 
     if not config.description or not config.handler then
-        log("命令注册失败：缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
+        log("命令注册失败: 缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
         return false
     end
 
@@ -1276,14 +1278,14 @@ local function RegisterCommand(name: string, config: {
     commandmap[name] = name
     for _, alias in ipairs(commandlist[name].aliases) do
         if commandmap[alias] then
-            log(string.format("命令缩写冲突：'%s' 已被 '%s' 占用，跳过注册", alias, commandmap[alias]), "warn")
+            log(string.format("命令缩写冲突: '%s' 已被 '%s' 占用，跳过注册", alias, commandmap[alias]), "warn")
         else
             commandmap[alias] = name
         end
     end
 
     local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
-    log("已注册命令：;" .. name .. " (" .. aliasesstr .. ")", "out")
+    log("已注册命令: ;" .. name .. " (" .. aliasesstr .. ")", "out")
 
     return true
 end
@@ -1427,9 +1429,14 @@ RegisterCommand("leave", {
     aliases = {},
     usage = {"leave"},
     description = "退出当前的服务器",
-    handler = function(_, _, _)
-        game:Shutdown()
-        return true, "已退出"
+    handler = function(args, _, _)
+        if args then
+            return false, "多余的参数!"
+        else
+            game:Shutdown()
+            return true, "已退出"
+        end
+        return false, "未知错误"
     end
 })
 
@@ -1437,19 +1444,26 @@ RegisterCommand("rejoin", {
     aliases = {"rj"},
     usage = {";rejoin"},
     description = "重新加入当前服务器",
-    handler = function(_, _, _)
+    handler = function(args, _, _)
+        local localplayer = Localplayer()
         if not TeleportService then
-            return false, "重连失败: 无法访问 TeleportService"
-        end
-        local success, err = pcall(function()
-            TeleportService:Teleport(game.PlaceId, Localplayer())
-        end)
-        if success then
-            task.delay(5, DestroyNvi)
-            return true, "已重连"
+            return false, "无法访问 TeleportService"
+        elseif #args > 0 then
+            return false, "多余的参数!"
         else
-            return false, "重连失败: " .. tostring(err)
+            if #Players:GetPlayers() <= 1 then
+                Players.LocalPlayer:Kick("\n正在重连... 如需中断请点击离开按钮")
+                task.wait()
+                TeleportService:Teleport(PlaceId, localplayer)
+            else
+                Players.LocalPlayer:Kick("\n正在重连... 如需中断请点击离开按钮")
+                task.wait()
+                TeleportService:TeleportToPlaceInstance(PlaceId, JobId, localplayer)
+            end
+            task.delay(1, DestroyNvi)
+            return true, "已重连"
         end
+        return false, "未知错误"
     end
 })
 
@@ -1457,12 +1471,66 @@ RegisterCommand("suicide", {
     aliases = {"reset"},
     usage = {";suicide"},
     description = "重置你的角色",
-    handler = function(_, _, _)
-        if Localhum() then
-            Localhum().Health = 0
-            return true, "已重生"
+    handler = function(args, _, _)
+        local humanoid = Localhum()
+        if not humanoid then
+            return false, "无法获取 Humanoid"
+        elseif args then
+            return false, "多余的参数!"
         else
-            return false, "无法获取角色的 Humanoid"
+            humanoid.Health = 0
+            return true, "已重生"
+        end
+        return false, "未知错误"
+    end
+})
+
+local freezestauts = nil
+
+RegisterCommand("freeze", {
+    aliases = {},
+    usage = {";freeze {enabled/on/disabled/off}"},
+    description = "冻结你自己!",
+    handler = function(args, _, extra)
+        local rootpart, character = Localroot(), Localchar()
+        freezestauts = rootpart.Anchored
+        if not rootpart then
+            return false, "无法获取 HumanoidRootPart"
+        elseif freezestauts == "error" then
+            return false, "无法获取角色状态，冻结功能不可用"
+        elseif not args then
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = not freezestauts
+                end
+            end
+            freezestauts = not freezestauts
+            if freezestauts then    
+                return true, "角色已冻结"
+            else
+                return true, "角色已解冻"
+            end
+            return true, freezestauts and "角色已冻结" or "角色已解冻"
+        else
+            if args[1] == "enabled" or args[1] == "on" then
+                freezestauts = true
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = true
+                    end
+                end
+                return true, "角色已冻结"
+            elseif args[1] == "disabled" or args[1] == "off" then
+                freezestauts = false
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Anchored = false
+                    end
+                end
+                return true, "角色已解冻"
+            else
+                return false, string.format("无法识别 '%s'", part)
+            end
         end
         return false, "未知错误"
     end
@@ -1474,11 +1542,11 @@ RegisterCommand("print", {
     description = "输出文本到控制台",
     handler = function(args, raw, extra)
         if #args == 0 then
-            return false, "命令参数不足: ;print <文本> [messagetype == <类型> 或 -e/-w/-o]"
+            return false, "参数不足 ;print <文本> [messagetype == <类型> 或 -e/-w/-o]"
         end
         local message = raw:match('"([^"]*)"')
         if not message or message == "" then
-            return false, "参数格式错误: 请使用双引号包裹文本，例如 ;print \"Hello World\""
+            return false, "请使用双引号包裹文本，例如 ;print \"Hello World\""
         end
         if #extra > 0 then
             local longmatched, shortmatched, messagetype = false, false, nil
@@ -1493,13 +1561,13 @@ RegisterCommand("print", {
                 if shortmatch then
                     shortmatched = true
                     if longmatched then
-                        return false, "配置参数错误: 同时使用了长格式和短格式的消息类型，请选择一种格式"
+                        return false, "同时使用了长格式和短格式的消息类型，请选择一种格式"
                     end
                     messagetype = shortmatch
                 end
                 
                 if not longmatch and not shortmatch then
-                    return false, string.format("配置参数错误: 无法识别 '%s'", part)
+                    return false, string.format("无法识别 '%s'", part)
                 end
             end
             if messagetype then
@@ -1524,36 +1592,10 @@ RegisterCommand("print", {
     end
 })
 
-local freezestauts = false
-
-RegisterCommand("freeze", {
-    aliases = {},
-    usage = {";freeze"},
-    description = "冻结你自己!",
-    handler = function(_, _, _)
-        if Localroot() then freezestauts = Localroot().Anchored end
-        if freezestauts == "error" then
-            return false, "无法获取角色状态，冻结功能不可用"
-        end
-        for _, part in ipairs(Localchar():GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.Anchored = not freezestauts
-            end
-        end
-        freezestauts = not freezestauts
-        if freezestauts then    
-            return true, "角色已冻结,再次输入;freeze解冻"
-        else
-            return true, "角色已解冻,再次输入;freeze冻结"
-        end
-        return true, freezestauts and "角色已冻结,再次输入;freeze解冻" or "角色已解冻,再次输入;freeze冻结"
-    end
-})
-
 local flightstauts, flightconnections = nil, {}
 
 local function StopFlight() 
-    local root = Localroot and Localroot()
+    local root = Localroot()
     
     if flightstauts == "normal" then 
         if root then
@@ -2071,7 +2113,7 @@ RegisterCommand("help", {
     description = "显示所有指令或查看特定指令的详细信息",
     handler = function(args, _, _)
         if #args == 0 then
-            log("命令格式: <>内为必填项 []内为选填项", "out")
+            log("命令格式: <>内为必填项 {}内为选填项 []内为配置项", "out")
             log("========== 可用指令列表 ==========", "out")
             for cmdname, cmdinfo in pairs(commandlist) do
                 local usage = table.concat(cmdinfo.usage, " / ")
@@ -2187,12 +2229,11 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
     Text_Info.Text = richtext
 end))
 
-table.insert(connections, CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttributeChangedSignal("Status"):Connect(function() 
-    if CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status") == "destroy" and not guistauts ~= "active" then 
+table.insert(connections, Version:GetAttributeChangedSignal("Stauts"):Connect(function() 
+    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Stauts")), "out")
+    if Version:GetAttribute("Stauts") == "destroy" and not guistauts ~= "active" then 
         log("收到销毁信号，正在销毁 GUI...", "out")
         DestroyNvi() 
-    else 
-        log("收到其它信号，当前状态为：" .. tostring(CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Status")), "out")
     end 
 end))
 
