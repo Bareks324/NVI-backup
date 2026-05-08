@@ -1523,15 +1523,20 @@ RegisterCommand("suicide", {
     end
 })
 
-local freezestauts = nil
+local freezestauts, freezeconnections = nil, {}
 
 RegisterCommand("freeze", {
     aliases = {},
-    usage = {";freeze {enabled/on/disabled/off}"},
+    usage = {";freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"},
     description = "冻结你自己!",
     handler = function(args, _, extra)
         local rootpart, character = Localroot(), Localchar()
         freezestauts = rootpart.Anchored
+        for _, connection in ipairs(freezeconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
         if not rootpart then
             return false, "无法获取 HumanoidRootPart"
         elseif freezestauts == "error" then
@@ -1550,24 +1555,78 @@ RegisterCommand("freeze", {
             end
             return true, freezestauts and "角色已冻结" or "角色已解冻"
         elseif args[2] then
-            return false, "参数过多! ;freeze {enabled/on/disabled/off}"
+            return false, "参数过多! ;freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"
         else
             if args[1] == "enabled" or args[1] == "on" then
-                freezestauts = true
-                for _, part in ipairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.Anchored = true
+                if #extra > 0 then
+                    for _, part in ipairs(extra) do
+                        if extra[1] == "loop" or extra[1] == "-l" then
+                            freezestauts = true
+                            for _, part in ipairs(character:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.Anchored = true
+                                    table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
+                                        if not part.Anchored then
+                                            part.Anchored = true
+                                        end
+                                    end))
+                                end
+                            end
+                            for _, connection in ipairs(freezeconnections) do
+                                table.insert(connections, connection)
+                            end
+                            return true, "角色已冻结 (循环模式)"
+                        else
+                            return false, string.format("无法识别参数 '%s'", part)
+                        end
                     end
+                elseif #extra > 1 then
+                    return false, "配置参数过多! ;freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"
+                elseif #extra == 0 then
+                    freezestauts = true
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Anchored = true
+                        end
+                    end
+                    return true, "角色已冻结"
                 end
-                return true, "角色已冻结"
+                return false, "未知错误"
             elseif args[1] == "disabled" or args[1] == "off" then
-                freezestauts = false
-                for _, part in ipairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.Anchored = false
+                if #extra > 0 then
+                    for _, part in ipairs(extra) do
+                        if extra[1] == "loop" or extra[1] == "-l" then
+                            freezestauts = true
+                            for _, part in ipairs(character:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.Anchored = false
+                                    table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
+                                        if part.Anchored then
+                                            part.Anchored = false
+                                        end
+                                    end))
+                                end
+                            end
+                            for _, connection in ipairs(freezeconnections) do
+                                table.insert(connections, connection)
+                            end
+                            return true, "角色已解冻 (循环模式)"
+                        else
+                            return false, string.format("无法识别参数 '%s'", part)
+                        end
                     end
+                elseif #extra > 1 then
+                    return false, "配置参数过多! ;freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"
+                elseif #extra == 0 then
+                    freezestauts = false
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Anchored = false
+                        end
+                    end
+                    return true, "角色已解冻"
                 end
-                return true, "角色已解冻"
+                return false, "未知错误"
             else
                 return false, string.format("无法识别参数 '%s'", args[1])
             end
