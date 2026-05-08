@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00083"
+VERSION_NUMBER = "00084"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -32,10 +32,10 @@ local Config = {
     },
 }
 
-guistauts, dragstauts, connections = "active", true, {}
+guistatus, dragstauts, connections = "active", true, {}
 
 local function log(text, messagetype)
-    if not Config.Console or not Config.Console.debuglogs or guistauts ~= "active" then return end
+    if not Config.Console or not Config.Console.debuglogs or guistatus ~= "active" then return end
     if messagetype == "out" and not Config.Console.showoutput then return end
     if messagetype == "warn" and not Config.Console.showwarn then return end
     if messagetype == "error" and not Config.Console.showerror then return end
@@ -52,13 +52,13 @@ local function log(text, messagetype)
 end
 
 local function Missing(expectedtype: string, value: any, fallback: any)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     return (type(value) == expectedtype and value) or 
            (type(fallback) == expectedtype and fallback) or nil
 end
 
 local function CreateAPI(name: string, fallback: any, ...)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     local args, api = {...}, nil
 
@@ -111,7 +111,7 @@ local function CreateAPI(name: string, fallback: any, ...)
 end
 
 local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchcharacter)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     timeout = timeout or 60
     basedelay = basedelay or 0.3
@@ -334,7 +334,7 @@ end, 60, 0.1, true)
 local NavigationHistory = Config.NavigationHistory
 
 function NavigationHistory:Push(entry)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     if self.nowindex < #self.history then
         for i = #self.history, self.nowindex + 1, -1 do
@@ -347,7 +347,7 @@ function NavigationHistory:Push(entry)
 end
 
 function NavigationHistory:Back()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     if self.nowindex <= 1 then
         log("没有更早的导航历史了", "warn")
@@ -358,7 +358,7 @@ function NavigationHistory:Back()
 end
 
 function NavigationHistory:Enter()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     if self.nowindex >= #self.history then
         log("没有更晚的导航历史了", "warn")
@@ -369,7 +369,7 @@ function NavigationHistory:Enter()
 end
 
 local function DestroyNvi()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     log("开始销毁", "out")
     if CoreGui:FindFirstChild("NVIScreenGui") then
@@ -381,19 +381,17 @@ local function DestroyNvi()
 	end
 
     log("已销毁 :)", "out")
-    guistauts = "destroy"
+    guistatus = "destroy"
 end
 
 local function GetTextWidth(text, fontsize, font)
-    if not text or text == "" or guistauts ~= "active" then return end
+    if not text or text == "" or guistatus ~= "active" then return end
     local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
     local size = TextService:GetTextSize(text, fontsize, font, Vector2.new(10000, 1000))
     return size.X
 end
 
-local cachedassetpaths = {}
-local failedassets = {}  
-local assetsdownloaded = false
+local cachedassetpaths, failedassets, assetsdownloaded = {}, {}, false
 
 local function TryGetAsset(assetpath: string): string?
     if not Waxgetcustomasset then return nil end
@@ -407,7 +405,7 @@ local function TryGetAsset(assetpath: string): string?
 end
 
 local function GetCustomAsset(assetpath: string): string?
-    if guistauts ~= "active" or not assetpath or assetpath == "" then return end
+    if guistatus ~= "active" or not assetpath or assetpath == "" then return end
 
     if cachedassetpaths[assetpath] then
         return cachedassetpaths[assetpath]
@@ -449,17 +447,19 @@ local function GetCustomAsset(assetpath: string): string?
 end
 
 if CoreGui:FindFirstChild("NVIScreenGui") then
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     existversion = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version").Value or 99999
     existprefix = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Prefix") or "Unknown"
     existnumber = CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):GetAttribute("Number") or "Unknown"
     if tonumber(VERSION_NUMBER) >= tonumber(existversion) then
         log("检测到旧版或错误版本 NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")，正在清理...", "warn")
-        CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Stauts", "destroy")
+        CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
+        task.wait(0.5)
         if CoreGui:FindFirstChild("NVIScreenGui") then
             log("旧版本似乎未检测到信号，强制销毁... NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")", "out")
-            CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Stauts", "destroy")
+            CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
+            task.wait(0.5)
             CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
         else 
             log("已销毁，继续注入当前版本... NVI (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")", "out")
@@ -483,7 +483,7 @@ Version.Value = VERSION_NUMBER
 Version.Parent = ScreenGui
 Version:SetAttribute("Prefix", VERSION_PREFIX)
 Version:SetAttribute("Number", VERSION_NUMBER)
-Version:SetAttribute("Stauts", guistauts)
+Version:SetAttribute("Status", guistatus)
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "GuiMainFrame"
@@ -656,12 +656,12 @@ Area_ConsoleInput.ZIndex = 12
 Area_ConsoleInput.Parent = Area_Console
 
 table.insert(connections, Area_ConsoleInput.MouseEnter:Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     dragstauts = false
 end))
 
 table.insert(connections, Area_ConsoleInput.MouseLeave:Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     dragstauts = true
 end))
 
@@ -769,12 +769,12 @@ UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
 UIListLayout_Console.Parent = Scroll_ConsoleOutput
 
 table.insert(connections, Scroll_ConsoleOutput.MouseEnter:Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     dragstauts = false
 end))
 
 table.insert(connections, Scroll_ConsoleOutput.MouseLeave:Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     dragstauts = true
 end))
 
@@ -891,7 +891,7 @@ PlaceHolder_SettingList.Parent = Area_SettingList
 local showsettinglist, showmodulelist = nil, nil
 
 local function UpdateAreaStats()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
     if showsettinglist ~= nil and
@@ -930,7 +930,7 @@ NavigationHistory:Push("console")
 UpdateAreaStats()
 
 table.insert(connections, Button_Enter.MouseButton1Click:Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     local entry = NavigationHistory:Enter()
     if entry then
         showsettinglist = entry
@@ -939,7 +939,7 @@ table.insert(connections, Button_Enter.MouseButton1Click:Connect(function()
 end))
 
 table.insert(connections, Button_Back.MouseButton1Click:Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     local back = NavigationHistory:Back()
     if back then
         showsettinglist = back
@@ -948,7 +948,7 @@ table.insert(connections, Button_Back.MouseButton1Click:Connect(function()
 end))
 
 local function RefreshConsoleDisplay()
-    if not Scroll_ConsoleOutput or guistauts ~= "active" then return end
+    if not Scroll_ConsoleOutput or guistatus ~= "active" then return end
     for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
         if child:IsA("TextLabel") then
             local messagetype = child:GetAttribute("MessageType") or "INFO"
@@ -970,7 +970,7 @@ end
 
 
 local function CreateModuleListButton(text, codename, order)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     local Button = Instance.new("TextButton")
     Button.Name = "TextButton_ModuleList" .. codename
@@ -995,7 +995,7 @@ local function CreateModuleListButton(text, codename, order)
     Underline.Parent = Button
 
     table.insert(connections, Button.MouseEnter:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
         tween:Play()
@@ -1005,7 +1005,7 @@ local function CreateModuleListButton(text, codename, order)
     end))
 
     table.insert(connections, Button.MouseLeave:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
         tween:Play()
@@ -1015,7 +1015,7 @@ local function CreateModuleListButton(text, codename, order)
     end))
 
     table.insert(connections, Button.MouseButton1Click:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         showmodulelist = codename
     end))
 
@@ -1023,7 +1023,7 @@ local function CreateModuleListButton(text, codename, order)
 end
 
 local function CreateSettingListButton(text, codename, order)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     local Button = Instance.new("TextButton")
     Button.Name = "TextButton_SettingList" .. codename
@@ -1041,7 +1041,7 @@ local function CreateSettingListButton(text, codename, order)
     Button.Parent = Area_SettingList
 
     table.insert(connections, Button.MouseEnter:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
         tween:Play()
@@ -1049,7 +1049,7 @@ local function CreateSettingListButton(text, codename, order)
     end))
 
     table.insert(connections, Button.MouseLeave:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
         tween:Play()
@@ -1057,7 +1057,7 @@ local function CreateSettingListButton(text, codename, order)
     end))
 
     table.insert(connections, Button.MouseButton1Click:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         if showsettinglist == codename then
             showsettinglist = nil
         else
@@ -1071,7 +1071,7 @@ local function CreateSettingListButton(text, codename, order)
 end
 
 local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     local Container = Instance.new("Frame")
     Container.Name = "Container" .. codename
@@ -1125,27 +1125,27 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     local buttonstauts = defaultstauts
 
     table.insert(connections, Container.MouseEnter:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         dragstauts = false
     end))
 
     table.insert(connections, Container.MouseLeave:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         dragstauts = true
     end))
 
     table.insert(connections, ButtonFrame.MouseEnter:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         dragstauts = false
     end))
 
     table.insert(connections, ButtonFrame.MouseLeave:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         dragstauts = true
     end))
 
     table.insert(connections, ButtonFrame.MouseButton1Click:Connect(function()
-        if guistauts ~= "active" then return end
+        if guistatus ~= "active" then return end
         buttonstauts = not buttonstauts
         local newsize, newposition, newtransparency = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0), buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0), buttonstauts and 0 or 1 
 
@@ -1216,21 +1216,43 @@ end)
 local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {}, 0
 
 local function ExecuteCommand(rawinput: string): (boolean, string?)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end 
     
-    local parts, extra = {}, {}
-    for part in (rawinput:match('%[(.-)%]') or ""):gmatch("([^,]+)") do
-        local value = part:match("^%s*(.-)%s*$")
-        if value ~= "" then table.insert(extra, value) end
+    local extra, extraset = {}, {}
+
+    local bracketmatch = rawinput:match('%[(.-)%]')
+    if bracketmatch then
+        for part in bracketmatch:gmatch("([^,]+)") do
+            local value = part:match("^%s*(.-)%s*$")
+            if value ~= "" then
+                table.insert(extra, value)
+                extraset[value] = true 
+            end
+        end
     end
-    for part in rawinput:sub(2):gmatch("[^%s]+") do
+
+    local cleantext = rawinput:gsub("%s*%[.*%]$", ""):gsub("^%s*;?", "")
+    local parts = {}
+    for part in cleantext:gmatch("[^%s]+") do
         table.insert(parts, part)
     end
 
-    local cmdname, args = parts[1], {table.unpack(parts, 2)}
+    local cmdname = parts[1]
+    local args = {}
+    for i = 2, #parts do
+        if not extraset[parts[i]] then
+            table.insert(args, parts[i])
+        end
+    end
+
+    if not cmdname then
+        log("无效命令输入", "warn")
+        return false
+    end
+
     local mainname = commandmap[cmdname]
     if not mainname then
-        log("未知命令输入: " .. cmdname .. "使用 ;help 查看可用命令", "warn")
+        log("未知命令输入: " .. cmdname .. " 使用 ;help 查看可用命令", "warn")
         return false
     end
 
@@ -1244,6 +1266,7 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
         log("增加命令历史记录: " .. rawinput, "out")
         commandhistoryindex = #commandinputlist + 1
         log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "), "out")
+        
         if not result1 then
             log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
             return false, result2
@@ -1261,7 +1284,7 @@ local function RegisterCommand(name: string, config: {
     description: string,
     handler: (args: {string}, raw: string, extra: string?) -> (boolean, string?)
 })
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     if not config.description or not config.handler then
         log("命令注册失败: 缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
@@ -1291,7 +1314,7 @@ local function RegisterCommand(name: string, config: {
 end
 
 local function FindCommandMatches()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
     local spacepos = inputtext:find(" ")
@@ -1327,7 +1350,7 @@ end
 local hintpressed = false
 
 local function UpdateHintDisplay()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
 
     for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
         if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
@@ -1392,7 +1415,7 @@ local function UpdateHintDisplay()
         HintUnderline.Parent = HintButton
 
         table.insert(connections, HintButton.MouseEnter:Connect(function()
-            if guistauts ~= "active" then return end
+            if guistatus ~= "active" then return end
             local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
             tween:Play()
@@ -1402,7 +1425,7 @@ local function UpdateHintDisplay()
         end))
 
         table.insert(connections, HintButton.MouseLeave:Connect(function()
-            if guistauts ~= "active" then return end
+            if guistatus ~= "active" then return end
             local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
             tween:Play()
@@ -1412,7 +1435,7 @@ local function UpdateHintDisplay()
         end))
 
         table.insert(connections, HintButton.MouseButton1Click:Connect(function()
-            if guistauts ~= "active" then return end
+            if guistatus ~= "active" then return end
             local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
             if spacepos then 
                 TextBox_ConsoleInput.Text = ";" .. matches[i].completename .. TextBox_ConsoleInput.Text:sub(spacepos)
@@ -1427,14 +1450,29 @@ end
 
 RegisterCommand("leave", {
     aliases = {},
-    usage = {"leave"},
+    usage = {";leave"},
     description = "退出当前的服务器",
     handler = function(args, _, _)
-        if args then
+        if #args > 0 then
             return false, "多余的参数!"
         else
             game:Shutdown()
             return true, "已退出"
+        end
+        return false, "未知错误"
+    end
+})
+
+RegisterCommand("unload", {
+    aliases = {},
+    usage = {";unload"},
+    description = "销毁Nvi脚本",
+    handler = function(args, _, _)
+        if #args > 0 then
+            return false, "多余的参数!"
+        else
+            DestroyNvi()
+            return true, "已销毁"
         end
         return false, "未知错误"
     end
@@ -1475,7 +1513,7 @@ RegisterCommand("suicide", {
         local humanoid = Localhum()
         if not humanoid then
             return false, "无法获取 Humanoid"
-        elseif args then
+        elseif #args > 0 then
             return false, "多余的参数!"
         else
             humanoid.Health = 0
@@ -1498,7 +1536,7 @@ RegisterCommand("freeze", {
             return false, "无法获取 HumanoidRootPart"
         elseif freezestauts == "error" then
             return false, "无法获取角色状态，冻结功能不可用"
-        elseif not args then
+        elseif #args == 0 then
             for _, part in ipairs(character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.Anchored = not freezestauts
@@ -1511,6 +1549,8 @@ RegisterCommand("freeze", {
                 return true, "角色已解冻"
             end
             return true, freezestauts and "角色已冻结" or "角色已解冻"
+        elseif args[2] then
+            return false, "参数过多! ;freeze {enabled/on/disabled/off}"
         else
             if args[1] == "enabled" or args[1] == "on" then
                 freezestauts = true
@@ -1529,7 +1569,7 @@ RegisterCommand("freeze", {
                 end
                 return true, "角色已解冻"
             else
-                return false, string.format("无法识别 '%s'", part)
+                return false, string.format("无法识别参数 '%s'", args[1])
             end
         end
         return false, "未知错误"
@@ -1736,7 +1776,7 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
 				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
@@ -1750,7 +1790,7 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
 				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
@@ -1810,7 +1850,7 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
 				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
@@ -1824,7 +1864,7 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
 				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
@@ -1868,14 +1908,14 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
 				if input.KeyCode == Enum.KeyCode.Space then floatvalue += 5
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then floatvalue -= 15
                 end
             end))
 
             table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistauts ~= "active" then return end
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.Space then floatvalue -= 5
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then floatvalue += 15
                 end
@@ -2055,7 +2095,7 @@ RegisterCommand("chat", {
     handler = function(args, rawinput, _)
         local message = rawinput:match(';chat%s*"([^"]*)"') or rawinput:match(';say%s*"([^"]*)"')
         if not message or message == "" then
-            return false, "命令参数错误：需要用双引号括起消息内容，如 ;chat \"hello world\"，消息：", message
+            return false, "命令参数错误: 需要用双引号括起消息内容, 如 ;chat \"hello world\"，消息：", message
         end
         local options, channel, usel33t = rawinput:match('%[([^%]]+)%]'), "normal", false
         if options then
@@ -2082,7 +2122,7 @@ RegisterCommand("chat", {
         end
         if channel ~= "normal" and channel ~= "system" and channel ~= "n" and channel ~= "s" then
             TextChatService.TextChannels.channel:SendAsync(message)
-            return true, "非roblox官方频道，尝试发送消息到输入的频道"
+            return true, "非roblox官方频道, 尝试发送消息到输入的频道"
         end
         if channel == "system" or channel == "s" then
             local success, err = pcall(function()
@@ -2091,7 +2131,7 @@ RegisterCommand("chat", {
             if success then
                 return true, "消息已发送到系统聊天" .. (usel33t and " (l33t 模式)" or "") .. " | 消息：" .. message
             else
-                return false, "发送失败：" .. tostring(err)
+                return false, "发送失败: " .. tostring(err)
             end
         elseif channel == "normal" or channel == "n" then
             local success, err = pcall(function()
@@ -2100,7 +2140,7 @@ RegisterCommand("chat", {
             if success then
                 return true, "消息已发送到普通聊天" .. (usel33t and " (l33t 模式)" or "") .. " | 消息：" .. message
             else
-                return false, "发送失败：" .. tostring(err)
+                return false, "发送失败: " .. tostring(err)
             end
         end
         return false, "未知错误"
@@ -2141,7 +2181,7 @@ RegisterCommand("help", {
 })
 
 table.insert(connections, RunService.Heartbeat:Connect(function()
-    if guistauts ~= "active" or not MainFrame.Visible then return end
+    if guistatus ~= "active" or not MainFrame.Visible then return end
 
     local fpstext, fpscolor = "--", COLOR_TEXT_NORMAL
     local success, fpsvalue = pcall(function()
@@ -2229,9 +2269,9 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
     Text_Info.Text = richtext
 end))
 
-table.insert(connections, Version:GetAttributeChangedSignal("Stauts"):Connect(function() 
-    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Stauts")), "out")
-    if Version:GetAttribute("Stauts") == "destroy" and not guistauts ~= "active" then 
+table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function() 
+    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Status")), "out")
+    if Version:GetAttribute("Status") == "destroy" and not guistatus ~= "active" then 
         log("收到销毁信号，正在销毁 GUI...", "out")
         DestroyNvi() 
     end 
@@ -2242,7 +2282,7 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
     if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
     if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
     if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
-    if not Scroll_ConsoleOutput or guistauts ~= "active" then return end
+    if not Scroll_ConsoleOutput or guistatus ~= "active" then return end
     if not message then return "" end
     
     local logtype = "out"
@@ -2320,7 +2360,7 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
 end))
 
 table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
-    if guistauts ~= "active" or not MainFrame.Visible or not enterpressed then return end
+    if guistatus ~= "active" or not MainFrame.Visible or not enterpressed then return end
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
     if text:find("^;") then
         ExecuteCommand(text)
@@ -2339,7 +2379,7 @@ end))
 local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
 
 table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
     if arrowkeypressed and TextBox_ConsoleInput.Text:sub(-1) == ";" then
         TextBox_ConsoleInput.Text = TextBox_ConsoleInput.Text:sub(1, -2)
         arrowkeypressed = false
@@ -2355,7 +2395,8 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
 end))
 
 table.insert(connections, UserInputService.InputBegan:Connect(function(input)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
+
     if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() then
         MainFrame.Visible = not MainFrame.Visible
         log("GUI 状态已变为：" .. tostring(MainFrame.Visible), "out")
@@ -2375,7 +2416,7 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
     elseif input.KeyCode == Enum.KeyCode.Delete and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() then 
         DestroyNvi()
-    elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistauts == "active" then
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistatus == "active" then
         local mousepos, guipos, guisize = Vector2.new(input.Position.X, input.Position.Y), Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
         if mousepos.X >= guipos.X and mousepos.X <= guipos.X + guisize.X and
             mousepos.Y >= guipos.Y and mousepos.Y <= guipos.Y + guisize.Y then
@@ -2389,7 +2430,8 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
 end))
 
 table.insert(connections, UserInputService.InputChanged:Connect(function(input)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
+
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         local mousepos = Vector2.new(input.Position.X, input.Position.Y)
         if MainFrame.Visible then
@@ -2406,10 +2448,12 @@ table.insert(connections, UserInputService.InputChanged:Connect(function(input)
 end))
 
 table.insert(connections, UserInputService.InputEnded:Connect(function(input)
-    if guistauts ~= "active" then return end
+    if guistatus ~= "active" then return end
+
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
 end))
 
 log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.", "out")
+ScreenGui.Destroying:Connect(DestroyNvi)
