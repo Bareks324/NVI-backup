@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00084"
+VERSION_NUMBER = "00085"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1451,7 +1451,14 @@ end
 RegisterCommand("leave", {
     aliases = {},
     usage = {";leave"},
-    description = "退出当前的服务器",
+    description = [[退出当前服务器
+
+    此操作将立即断开与服务器的连接, 回到 Roblox 的服务器选择界面
+
+    (不需要任何额外参数)
+
+    使用实例:
+    ;leave]],
     handler = function(args, _, _)
         if #args > 0 then
             return false, "多余的参数!"
@@ -1466,7 +1473,14 @@ RegisterCommand("leave", {
 RegisterCommand("unload", {
     aliases = {},
     usage = {";unload"},
-    description = "销毁Nvi脚本",
+    description = [[销毁Nvi脚本
+    
+    此操作将销毁Nvi的界面, 并停止所有功能的运行
+
+    (不需要任何额外参数)
+    
+    使用实例:
+    ;unload]],
     handler = function(args, _, _)
         if #args > 0 then
             return false, "多余的参数!"
@@ -1481,7 +1495,14 @@ RegisterCommand("unload", {
 RegisterCommand("rejoin", {
     aliases = {"rj"},
     usage = {";rejoin"},
-    description = "重新加入当前服务器",
+    description = [[重新加入当前服务器
+    
+    此操作将尝试重新加入当前服务器
+
+    (不需要任何额外参数)
+    
+    使用实例:
+    ;rejoin]],
     handler = function(args, _, _)
         local localplayer = Localplayer()
         if not TeleportService then
@@ -1508,7 +1529,14 @@ RegisterCommand("rejoin", {
 RegisterCommand("suicide", {
     aliases = {"reset"},
     usage = {";suicide"},
-    description = "重置你的角色",
+    description = [[重置你的角色
+    
+    此操作将使你的角色死亡并重生
+
+    (不需要任何额外参数)
+    
+    使用实例:
+    ;suicide]],
     handler = function(args, _, _)
         local humanoid = Localhum()
         if not humanoid then
@@ -1523,15 +1551,190 @@ RegisterCommand("suicide", {
     end
 })
 
+local sitstauts, sitconnections = nil, {}
+
+RegisterCommand("sit", {
+    aliases = {},
+    usage = {";sit {状态} [<模式>]"},
+    description = [[让你的角色坐下或站起
+
+    此操作将使你的角色坐下或站起
+    
+    关于参数:
+    {状态} - 必要参数, 角色坐下状态, 可选值如下:
+    enabled 或 on - 开启坐下功能
+    disabled 或 off - 关闭坐下功能
+    
+    
+    关于配置: 
+    <模式> - 可选配置, 坐下模式, 可选值如下:
+    force 或 -f - 强制模式 (如果受到别的脚本干预导致角色被坐下或被站起, 将自动重新坐下或站起)
+    
+    使用实例:
+    ;sit on [-f] - 启用坐下功能, 并开启强制模式]],
+    handler = function(args, _, extra)
+        local humanoid, character = Localhum(), Localchar()
+
+        sitstauts = humanoid and humanoid.Sit
+        for _, connection in ipairs(sitconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        if not humanoid then
+            return false, "无法获取 Humanoid"
+        elseif #args == 0 then
+            if #extra > 0 then
+                if extra[1] == "force" or extra[1] == "-f" then
+                    table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+                        if humanoid.Sit ~= sitstauts then   
+                            humanoid.Sit = sitstauts
+                        end
+                    end))
+
+                    for _, connection in ipairs(sitconnections) do
+                        table.insert(connections, connection)
+                    end
+                else
+                    return false, string.format("无法识别参数 '%s'", extra[1])
+                end
+            end
+            humanoid.Sit = not sitstauts
+            sitstauts = not sitstauts
+            if sitstauts then    
+                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
+                    table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+                        if humanoid.Sit ~= true then
+                            humanoid.Sit = true
+                        end
+                    end))
+
+                    for _, connection in ipairs(sitconnections) do
+                        table.insert(connections, connection)
+                    end
+                    return true, "角色已坐下 (强制模式)"
+                else
+                    return true, "角色已坐下"
+                end
+                return false, "未知错误"
+            else
+                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
+                    table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+                        if humanoid.Sit ~= false then
+                            humanoid.Sit = false
+                        end
+                    end))
+
+                    for _, connection in ipairs(sitconnections) do
+                        table.insert(connections, connection)
+                    end
+                    return true, "角色已站起 (强制模式)"
+                else
+                    return true, "角色已站起"
+                end
+                return false, "未知错误"
+            end
+            return false, "未知错误"
+        elseif args[2] then
+            return false, "参数过多!"
+        else
+            if args[1] == "enabled" or args[1] == "on" then
+                if #extra > 0 then
+                    for _, part in ipairs(extra) do
+                        if extra[1] == "force" or extra[1] == "-f" then
+                            table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+                                if humanoid.Sit ~= true then
+                                    humanoid.Sit = true
+                                end
+                            end))
+
+                            for _, connection in ipairs(sitconnections) do
+                                table.insert(connections, connection)
+                            end
+                        else
+                            return false, string.format("无法识别参数 '%s'", part)
+                        end
+                    end
+                elseif #extra > 1 then
+                    return false, "配置参数过多!"
+                end
+                sitstauts = true
+                humanoid.Sit = true
+                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
+                    return true, "角色已坐下 (强制模式)"
+                else
+                    return true, "角色已坐下"
+                end
+                return false, "未知错误"
+            elseif args[1] == "disabled" or args[1] == "off" then
+                if #extra > 0 then
+                    for _, part in ipairs(extra) do
+                        if extra[1] == "force" or extra[1] == "-f" then
+                            table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+                                if humanoid.Sit ~= false then
+                                    humanoid.Sit = false
+                                end
+                            end))
+
+                            for _, connection in ipairs(sitconnections) do
+                                table.insert(connections, connection)
+                            end
+                        else
+                            return false, string.format("无法识别参数 '%s'", part)
+                        end
+                    end
+                elseif #extra > 1 then
+                    return false, "配置参数过多!"
+                end
+                sitstauts = false
+                humanoid.Sit = false
+                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
+                    return true, "角色已站起 (强制模式)"
+                else
+                    return true, "角色已站起"
+                end
+                return false, "未知错误"
+            else
+                return false, string.format("无法识别参数 '%s'", args[1])
+            end
+        end
+        return false, "未知错误"
+    end
+})
+
 local freezestauts, freezeconnections = nil, {}
+
+local function FreezeCharacter(character, status)
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Anchored = status
+        end
+    end
+end
 
 RegisterCommand("freeze", {
     aliases = {},
-    usage = {";freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"},
-    description = "冻结你自己!",
+    usage = {";freeze {状态} [<模式>]"},
+    description = [[冻结你自己!
+
+    此操作将冻结你的角色, 使其无法移动
+    
+    关于参数:
+    {状态} - 必要参数, 冻结状态, 可选值如下:
+    enabled 或 on - 启用冻结功能
+    disabled 或 off - 禁用冻结功能
+    
+    
+    关于配置: 
+    <模式> - 可选配置, 冻结模式, 可选值如下:
+    force 或 -f - 强制模式 (如果受到别的脚本干预导致角色被冻结或被解冻, 将自动重新冻结或解冻角色)
+    
+    使用实例:
+    ;freeze on [-f] - 启用冻结功能, 并开启强制模式]],
     handler = function(args, _, extra)
         local rootpart, character = Localroot(), Localchar()
-        freezestauts = rootpart.Anchored
+
+        freezestauts = rootpart and rootpart.Anchored
         for _, connection in ipairs(freezeconnections) do
             if connection and connection.Connected then
                 connection:Disconnect()
@@ -1539,14 +1742,23 @@ RegisterCommand("freeze", {
         end
         if not rootpart then
             return false, "无法获取 HumanoidRootPart"
-        elseif freezestauts == "error" then
-            return false, "无法获取角色状态，冻结功能不可用"
         elseif #args == 0 then
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Anchored = not freezestauts
+            if #extra > 0 then
+                if extra[1] == "force" or extra[1] == "-f" then
+                    table.insert(freezeconnections, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
+                        if rootpart.Anchored ~= freezestauts then   
+                            rootpart.Anchored = freezestauts
+                        end
+                    end))
+
+                    for _, connection in ipairs(freezeconnections) do
+                        table.insert(connections, connection)
+                    end
+                else
+                    return false, string.format("无法识别参数 '%s'", extra[1])
                 end
             end
+            FreezeCharacter(character, not freezestauts)
             freezestauts = not freezestauts
             if freezestauts then    
                 return true, "角色已冻结"
@@ -1555,75 +1767,62 @@ RegisterCommand("freeze", {
             end
             return true, freezestauts and "角色已冻结" or "角色已解冻"
         elseif args[2] then
-            return false, "参数过多! ;freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"
+            return false, "参数过多!"
         else
             if args[1] == "enabled" or args[1] == "on" then
                 if #extra > 0 then
                     for _, part in ipairs(extra) do
-                        if extra[1] == "loop" or extra[1] == "-l" then
-                            freezestauts = true
-                            for _, part in ipairs(character:GetDescendants()) do
-                                if part:IsA("BasePart") then
+                        if extra[1] == "force" or extra[1] == "-f" then
+                            table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
+                                if part.Anchored ~= true then
                                     part.Anchored = true
-                                    table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
-                                        if not part.Anchored then
-                                            part.Anchored = true
-                                        end
-                                    end))
                                 end
-                            end
+                            end))
+                            
                             for _, connection in ipairs(freezeconnections) do
                                 table.insert(connections, connection)
                             end
-                            return true, "角色已冻结 (循环模式)"
+                            return true, "角色已冻结 (强制模式)"
                         else
                             return false, string.format("无法识别参数 '%s'", part)
                         end
                     end
                 elseif #extra > 1 then
-                    return false, "配置参数过多! ;freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"
-                elseif #extra == 0 then
-                    freezestauts = true
-                    for _, part in ipairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Anchored = true
-                        end
-                    end
+                    return false, "配置参数过多!"
+                end
+                freezestauts = true
+                FreezeCharacter(character, true)
+                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
+                    return true, "角色已冻结 (强制模式)"
+                else
                     return true, "角色已冻结"
                 end
                 return false, "未知错误"
             elseif args[1] == "disabled" or args[1] == "off" then
                 if #extra > 0 then
                     for _, part in ipairs(extra) do
-                        if extra[1] == "loop" or extra[1] == "-l" then
-                            freezestauts = true
-                            for _, part in ipairs(character:GetDescendants()) do
-                                if part:IsA("BasePart") then
+                        if extra[1] == "force" or extra[1] == "-f" then
+                            table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
+                                if part.Anchored ~= false then
                                     part.Anchored = false
-                                    table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
-                                        if part.Anchored then
-                                            part.Anchored = false
-                                        end
-                                    end))
                                 end
-                            end
+                            end))
+
                             for _, connection in ipairs(freezeconnections) do
                                 table.insert(connections, connection)
                             end
-                            return true, "角色已解冻 (循环模式)"
                         else
                             return false, string.format("无法识别参数 '%s'", part)
                         end
                     end
                 elseif #extra > 1 then
-                    return false, "配置参数过多! ;freeze {enabled 或 on / disabled 或 off} [loop 或 -l]"
-                elseif #extra == 0 then
-                    freezestauts = false
-                    for _, part in ipairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Anchored = false
-                        end
-                    end
+                    return false, "配置参数过多!"
+                end
+                freezestauts = false
+                FreezeCharacter(character, false)
+                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
+                    return true, "角色已解冻 (强制模式)"
+                else
                     return true, "角色已解冻"
                 end
                 return false, "未知错误"
@@ -1637,11 +1836,24 @@ RegisterCommand("freeze", {
 
 RegisterCommand("print", {
     aliases = {"echo"},
-    usage = {";print <文本> [messagetype == <类型> 或 -e/-w/-o]"},
-    description = "输出文本到控制台",
+    usage = {";print <文本> [<文本类型>]"},
+    description = [[输出文本到控制台
+
+     此操作将会将输入的参数输出到控制台, 使用 F9 打开控制台
+    
+    关于参数:
+    <文本> - 必要参数, 需要输出的文本, 必须使用双引号包裹，例如 ;print "Hello World"
+    
+    关于配置:
+    <文本类型> - 可选配置, 指定输出文本的类型，影响显示样式和是否受控制台设置影响
+    messagetype == error / warn / out - 指定消息类型的长格式参数
+    -e / -w / -o - 分别代表 error / warn / out 的短格式参数
+    
+    使用实例:
+    ;print "Hello World" [messagetype == warn] ]],
     handler = function(args, raw, extra)
         if #args == 0 then
-            return false, "参数不足 ;print <文本> [messagetype == <类型> 或 -e/-w/-o]"
+            return false, "参数不足"
         end
         local message = raw:match('"([^"]*)"')
         if not message or message == "" then
@@ -1691,516 +1903,715 @@ RegisterCommand("print", {
     end
 })
 
-local flightstauts, flightconnections = nil, {}
-
-local function StopFlight() 
-    local root = Localroot()
-    
-    if flightstauts == "normal" then 
-        if root then
-            local LinearVelocity = root:FindFirstChild("LinearVelocity_Flight")
-            if LinearVelocity then LinearVelocity:Destroy() end
-            local Attachment = root:FindFirstChild("Attachment_Flight")
-            if Attachment then Attachment:Destroy() end
-        end
-        
-        for _, connection in ipairs(flightconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
-        end
-
-        flightstauts, flightconnections = nil, {}
-        log("飞行 (普通模式) 已关闭", "out")
-        return true, "飞行 (普通模式) 已关闭"
-        
-    elseif flightstauts == "tp" then 
-        if root then
-            root.Massless = false
-        end
-        
-        for _, connection in ipairs(flightconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
-        end
-
-        flightstauts, flightconnections = nil, {}
-        log("飞行 (传送模式) 已关闭", "out")
-        return true, "飞行 (传送模式) 已关闭"
-        
-    elseif flightstauts == "platform" then
-        if root then 
-            local PlatformPart = root:FindFirstChild("PlatformPart_Flight")
-            if PlatformPart then PlatformPart:Destroy() end
-        end
-        
-        for _, connection in ipairs(flightconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
-        end
-
-        flightstauts, flightconnections = nil, {}
-        log("飞行 (平台模式) 已关闭", "out")
-        return true, "飞行 (平台模式) 已关闭"
-    else
-        return false, "飞行未开启"
-    end
-end
-
-RegisterCommand("flight", {
-    aliases = {"fly"},
-    usage = {";flight [mode == <模式>, speed == <速度，单位： Studs>]"},
-    description = "小心坠机!",
-    handler = function(args, rawinput, extra)
-        local root = Localroot()
-        if not root then
-            return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
-        end
-
-        if root:FindFirstChild("LinearVelocity_Flight") and root:FindFirstChild("Attachment_Flight") then 
-            flightstauts = "normal"
-        elseif root.Massless then
-            flightstauts = "tp"
-        elseif root:FindFirstChild("PlatformPart_Flight") then
-            flightstauts = "platform"
-        else
-            flightstauts = nil
-        end
-        
-        local options, mode, flyspeed = rawinput:match('%[([^%]]+)%]'), "normal", 16
-        if options then
-            local modematch = options:match('mode%s*==%s*(%w+)')
-            if modematch then
-                mode = modematch
-            end
-            local flyspeedmatch = options:match('speed%s*==%s*(%d+)')
-            if flyspeedmatch then
-                flyspeed = tonumber(flyspeedmatch) or 16
-            end
-        end
-        if mode ~= "normal" and mode ~= "platform" and mode ~= "tp" and mode ~= "n" and mode ~= "p" and mode ~= "t" then
-            return false, "没有此飞行模式!"
-        end
-
-        if mode == "normal" or mode == "n" then
-            if flightstauts ~= nil then
-                StopFlight()
-                return true, "飞行已关闭"
-            end
-            
-            local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
-
-            local Attachment = Instance.new("Attachment")
-            Attachment.Name = "Attachment_Flight"
-            Attachment.Parent = root
-
-            local LinearVelocity = Instance.new("LinearVelocity")
-            LinearVelocity.Name = "LinearVelocity_Flight"
-            LinearVelocity.MaxForce = 1e9
-            LinearVelocity.Parent = root
-            LinearVelocity.Attachment0 = Attachment 
-
-            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
-                if not root or not LinearVelocity.Parent then
-                    StopFlight()
-                    return false, "目前状态无法开始飞行"
-                end
-                
-                local look, right, movedirection = Vector3.new(Localcam.CFrame.LookVector.X, 0, Localcam.CFrame.LookVector.Z).Unit, Vector3.new(Localcam.CFrame.RightVector.X, 0, Localcam.CFrame.RightVector.Z).Unit, Vector3.new()
-			    if look.Magnitude == 0 then 
-                    look = Vector3.new(1, 0, 0) 
-                end
-
-                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
-                    control.Left ~= 0 or control.Right ~= 0 or 
-                    control.Up ~= 0 or control.Down ~= 0
-                local forward, strafe, vertical = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down
-
-                if forward ~= 0 or strafe ~= 0 then
-                    movedirection += look * forward + right * strafe
-                end
-
-                if hasinput then
-                    local velocity = Vector3.new()
-                    if movedirection.Magnitude > 0 then
-                        velocity += movedirection.Unit * flyspeed * control.SpeedModifier
-                    end
-                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
-                    LinearVelocity.VectorVelocity = velocity
-                else
-                    LinearVelocity.VectorVelocity = Vector3.new(0, 0, 0)
-                end
-            end))
-
-            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
-				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
-				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
-				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
-				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
-				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
-					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
-					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
-				end
-            end))
-
-            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
-				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
-				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
-				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
-				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
-                end
-            end))
-
-            for _, connection in ipairs(flightconnections) do
-                table.insert(connections, connection)
-            end
-
-            flightstauts = "normal"
-            return true, "飞行(普通模式)已打开, 速度: " .. flyspeed
-        elseif mode == "tp" or mode == "t" then  
-            if flightstauts ~= nil then
-                StopFlight()
-                return true, "飞行已关闭"
-            end
-            
-            local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
-
-            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
-                if not root then
-                    StopFlight()
-                    return false, "目前状态无法开始飞行"
-                end
-                
-                local look, right, movedirection = Vector3.new(Localcam.CFrame.LookVector.X, 0, Localcam.CFrame.LookVector.Z).Unit, Vector3.new(Localcam.CFrame.RightVector.X, 0, Localcam.CFrame.RightVector.Z).Unit, Vector3.new()
-			    if look.Magnitude == 0 then 
-                    look = Vector3.new(1, 0, 0) 
-                end
-
-                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
-                    control.Left ~= 0 or control.Right ~= 0 or 
-                    control.Up ~= 0 or control.Down ~= 0
-                local forward, strafe, vertical = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down
-
-                if forward ~= 0 or strafe ~= 0 then
-                    movedirection += look * forward + right * strafe
-                end
-
-                if hasinput then
-                    local velocity = Vector3.new()
-                    if movedirection.Magnitude > 0 then
-                        velocity += movedirection.Unit * flyspeed * control.SpeedModifier * 0.05
-                    end
-                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier * 0.05, 0)
-
-                    if not root.Massless then 
-                        root.Massless = true 
-                    end
-
-                    root.CFrame += velocity
-                end
-            end))
-
-            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
-				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
-				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
-				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
-				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
-				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
-					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
-					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
-				end
-            end))
-
-            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
-				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
-				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
-				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
-				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
-                end
-            end))
-
-            for _, connection in ipairs(flightconnections) do
-                table.insert(connections, connection)
-            end
-
-            flightstauts = "tp"
-            return true, "飞行 (传送模式) 已打开，速度：" .. flyspeed
-        elseif mode == "platform" or mode == "p" then
-            if flightstauts ~= nil then
-                StopFlight()
-                return true, "飞行已关闭"
-            end
-            
-            local floatvalue = -31
-
-            local PlatformPart = Instance.new("Part")
-            PlatformPart.Name = "PlatformPart_Flight"
-            PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
-            PlatformPart.Anchored = true
-            PlatformPart.CanCollide = true 
-            PlatformPart.Transparency = 0.9
-            PlatformPart.CastShadow = false
-            PlatformPart.CFrame = root.CFrame * CFrame.new(0, floatvalue, 0)
-            PlatformPart.Parent = root
-
-            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
-                if not root then
-                    StopFlight()
-                    return false, "目前状态无法开始飞行"
-                else
-                    PlatformPart.CFrame = root.CFrame * CFrame.new(0, floatvalue / 10, 0)
-                end
-            end))
-
-            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-				if input.KeyCode == Enum.KeyCode.Space then floatvalue += 5
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then floatvalue -= 15
-                end
-            end))
-
-            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
-                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.Space then floatvalue -= 5
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then floatvalue += 15
-                end
-            end))
-
-            table.insert(flightconnections, Localhum().Died:Connect(function()
-                if not root then
-                    StopFlight()
-                    return true, "角色死亡, 已结束飞行"
-                end
-            end))
-
-            for _, connection in ipairs(flightconnections) do
-                table.insert(connections, connection)
-            end
-
-            flightstauts = "platform"
-            return true, "飞行 (平台模式) 已打开，速度：" .. flyspeed
-        else 
-            return false, "未知飞行模式"
-        end
-        return false, "未知错误"
-    end
-})
-
-RegisterCommand("sit", {
-    aliases = {},
-    usage = {";sit"},
-    description = "让你的角色坐下或站起",
-    handler = function(_, _, _)
-        if Localhum() then
-            Localhum().Sit = not Localhum().Sit
-            if Localhum().Sit then
-                return true, "角色已坐下"
-            elseif Localhum().Sit == false then
-                return true, "角色已站起"
-            else 
-                return false, "未知错误"
-            end
-        else
-            return false, "无法获取角色的 Humanoid"
-        end
-        return false, "未知错误"
-    end
-})
+local originalwalkspeed, walkspeedconnections = nil, {}
 
 RegisterCommand("walkspeed", {
     aliases = {"ws", "speed"},
-    usage = {";walkspeed <数值>"},
-    description = "设置角色移动速度",
-    handler = function(args, _, _)
-        if #args == 0 then
-            return false, "命令参数不足: ;walkspeed <数值>"
-        end
-        local value = tonumber(args[1])
-        if not value then
-            return false, "输入的数值需要是数字!"
-        end
-        if Localhum() then
-            Localhum().WalkSpeed = value
-            if Localhum().WalkSpeed == value then
-                return true, "设置 WalkSpeed 为 " .. value .. " 成功"
-            elseif Localhum().WalkSpeed ~= value then
-                return false, "设置 WalkSpeed 为 " .. value .. " 失败"
-            else
-                return false, "未知错误"
+    usage = {";walkspeed <操作> <数值> [<模式>]"},
+    description = [[设置角色移动速度
+    
+    此操作将设置你角色的 WalkSpeed 属性, 影响角色的移动速度
+    
+    关于参数:
+    <操作> - 必要参数, 操作类型, 可选值如下:
+    set / s - 设置 WalkSpeed 数值
+    get / g - 获取当前 WalkSpeed 数值
+    reset / r - 重置 WalkSpeed 数值到首次设定前
+    
+    <数值> - 设置模式下的必要参数, 例如 50
+    
+    关于配置:
+    <模式> - 可选配置, 设置模式:
+    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改]],
+    handler = function(args, _, extra)
+        local humanoid = Localhum()
+        if not humanoid then return false, "无法获取 Humanoid" end
+
+        for _, connection in ipairs(walkspeedconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
             end
-        else
-            return false, "无法获取 Humanoid"
         end
-        return false, "未知错误"
+
+        local mode = (args[1] or "")
+
+        if mode == "get" or mode == "g" then
+            if #args ~= 1 then return false, "获取模式仅需操作参数" end
+            return true, "当前 WalkSpeed 数值为 " .. tostring(humanoid.WalkSpeed)
+
+        elseif mode == "reset" or mode == "r" then
+            if #args ~= 1 then return false, "重置模式仅需操作参数" end
+            if not originalwalkspeed then return false, "尚未设置过 WalkSpeed, 无法重置" end
+            humanoid.WalkSpeed = originalwalkspeed
+            return true, "WalkSpeed 已重置为 " .. tostring(originalwalkspeed)
+
+        elseif mode == "set" or mode == "s" then
+            if #args < 2 then return false, "设置模式需提供数值参数" end
+            if #args > 2 then return false, "参数过多" end
+
+            local value = tonumber(args[2])
+            if not value then return false, "输入的数值需要是数字!" end
+            if value < 0 then return false, "WalkSpeed 数值不能为负数!" end
+
+            if not originalwalkspeed then
+                originalwalkspeed = humanoid.WalkSpeed
+            end
+
+            humanoid.WalkSpeed = value
+
+            if #extra > 1 then
+                return false, "配置参数过多!"
+            elseif #extra == 1 then
+                local flag = extra[1]
+                if flag == "force" or flag == "-f" then
+                    table.insert(walkspeedconnections, humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                        if humanoid.WalkSpeed ~= value then
+                            humanoid.WalkSpeed = value
+                        end
+                    end))
+                    for _, conn in ipairs(walkspeedconnections) do
+                        if conn and conn.Connected then table.insert(connections, conn) end
+                    end
+                    return true, string.format("WalkSpeed 已强制锁定为 %d", value)
+                else
+                    return false, string.format("无法识别配置 '%s'", extra[1])
+                end
+            end
+
+            return true, "WalkSpeed 已设置为 " .. tostring(value)
+        else
+            return false, "未知的操作模式, 请使用 get/set/reset"
+        end
     end
 })
+
+local originaljumppower, jumppowerconnections = nil, {}
 
 RegisterCommand("jumppower", {
     aliases = {"jp"},
-    usage = {";jumppower <数值>"},
-    description = "设置角色跳跃力度",
-    handler = function(args, _, _)
-        if #args == 0 then
-            return false, "命令参数不足: ;jumppower <数值>"
-        end
-        local value = tonumber(args[1])
-        if not value then
-            return false, "输入的数值需要是数字!"
-        end
-        if Localhum() then 
-            Localhum().JumpPower = value
-            if Localhum().JumpPower == value then 
-                return true, "设置 JumpPower 为 " .. value .. " 成功"
-            elseif Localhum().JumpPower ~= value then
-                return false, "设置 JumpPower 为" .. value .. " 失败"
-            else
-                return false, "未知错误"
+    usage = {";jumppower <操作> <数值> [<模式>]"},
+    description = [[设置角色跳跃力
+
+    此操作将设置你角色的 JumpPower 属性, 影响角色的基础跳跃高度
+
+    关于参数:
+    <操作> - 必要参数, 操作类型, 可选值如下:
+    set / s - 设置 JumpPower 数值
+    get / g - 获取当前 JumpPower 数值
+    reset / r - 重置 JumpPower 数值到首次设定前
+
+    <数值> - 设置模式下的必要参数, 例如 50
+
+    关于配置:
+    <模式> - 可选配置, 设置模式:
+    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改]],
+    handler = function(args, _, extra)
+        local humanoid = Localhum()
+        if not humanoid then return false, "无法获取 Humanoid" end
+
+        for _, connection in ipairs(jumppowerconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
             end
-        else 
-            return false, "无法获取角色的 Humanoid"
         end
-        return false, "未知错误"
+
+        local mode = (args[1] or "")
+
+        if mode == "get" or mode == "g" then
+            if #args ~= 1 then return false, "获取模式仅需操作参数" end
+            return true, "当前 JumpPower 数值为 " .. tostring(humanoid.JumpPower)
+
+        elseif mode == "reset" or mode == "r" then
+            if #args ~= 1 then return false, "重置模式仅需操作参数" end
+            if not originaljumppower then return false, "尚未设置过 JumpPower, 无法重置" end
+            humanoid.JumpPower = originaljumppower
+            return true, "JumpPower 已重置为 " .. tostring(originaljumppower)
+
+        elseif mode == "set" or mode == "s" then
+            if #args < 2 then return false, "设置模式需提供数值参数" end
+            if #args > 2 then return false, "参数过多" end
+
+            local value = tonumber(args[2])
+            if not value then return false, "输入的数值需要是数字!" end
+            if value < 0 then return false, "JumpPower 数值不能为负数!" end
+
+            if not originaljumppower then
+                originaljumppower = humanoid.JumpPower
+            end
+
+            humanoid.JumpPower = value
+
+            if #extra > 1 then
+                return false, "配置参数过多!"
+            elseif #extra == 1 then
+                local flag = extra[1]:lower()
+                if flag == "force" or flag == "-f" then
+                    table.insert(jumppowerconnections, humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+                        if humanoid.JumpPower ~= value then
+                            humanoid.JumpPower = value
+                        end
+                    end))
+                    for _, conn in ipairs(jumppowerconnections) do
+                        if conn and conn.Connected then table.insert(connections, conn) end
+                    end
+                    return true, string.format("JumpPower 已强制锁定为 %d", value)
+                else
+                    return false, string.format("无法识别配置 '%s'", extra[1])
+                end
+            end
+
+            return true, "JumpPower 已设置为 " .. tostring(value)
+        else
+            return false, "未知的操作模式, 请使用 get/set/reset"
+        end
     end
 })
 
+local originaljumpheight, jumpheightconnections = nil, {}
+
 RegisterCommand("jumpheight", {
     aliases = {"jh"},
-    usage = {";jumpheight <数值>"},
-    description = "设置角色跳跃高度",
-    handler = function(args, _, _)
-        if #args == 0 then
-            return false, "命令参数不足: ;jumpheight <数值>"
-        end
-        local value = tonumber(args[1])
-        if not value then
-            return false, "输入的数值需要是数字!"
-        end
-        if Localhum() then 
-            Localhum().JumpHeight = value
-            if Localhum().JumpHeight == value then 
-                return true, "设置 JumpHeight 为 " .. value .. " 成功"
-            elseif Localhum().JumpHeight ~= value then 
-                return false, "设置 JumpHeight 为" .. value .. " 失败"
-            else
-                return false, "未知错误"
+    usage = {";jumpheight <操作> <数值> [<模式>]"},
+    description = [[设置角色跳跃高度
+
+    此操作将设置你角色的 JumpHeight 属性, 影响角色的物理跳跃高度
+
+    关于参数:
+    <操作> - 必要参数, 操作类型, 可选值如下:
+    set / s - 设置 JumpHeight 数值
+    get / g - 获取当前 JumpHeight 数值
+    reset / r - 重置 JumpHeight 数值到首次设定前
+
+    <数值> - 设置模式下的必要参数, 例如 10
+
+    关于配置:
+    <模式> - 可选配置, 设置模式:
+    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改]],
+    handler = function(args, _, extra)
+        local humanoid = Localhum()
+        if not humanoid then return false, "无法获取 Humanoid" end
+
+        for _, connection in ipairs(jumpheightconnections) do
+            if connection and connection.Connected then
+                connection:Disconnect()
             end
-        else 
-            return false, "无法获取角色的 Humanoid"
         end
-        return false, "未知错误"
+
+        local mode = (args[1] or "")
+
+        if mode == "get" or mode == "g" then
+            if #args ~= 1 then return false, "获取模式仅需操作参数" end
+            return true, "当前 JumpHeight 数值为 " .. tostring(humanoid.JumpHeight)
+
+        elseif mode == "reset" or mode == "r" then
+            if #args ~= 1 then return false, "重置模式仅需操作参数" end
+            if not originaljumpheight then return false, "尚未设置过 JumpHeight, 无法重置" end
+            humanoid.JumpHeight = originaljumpheight
+            return true, "JumpHeight 已重置为 " .. tostring(originaljumpheight)
+
+        elseif mode == "set" or mode == "s" then
+            if #args < 2 then return false, "设置模式需提供数值参数" end
+            if #args > 2 then return false, "参数过多" end
+
+            local value = tonumber(args[2])
+            if not value then return false, "输入的数值需要是数字!" end
+            if value < 0 then return false, "JumpHeight 数值不能为负数!" end
+
+            if not originaljumpheight then
+                originaljumpheight = humanoid.JumpHeight
+            end
+
+            humanoid.JumpHeight = value
+
+            if #extra > 1 then
+                return false, "配置参数过多!"
+            elseif #extra == 1 then
+                local flag = extra[1]:lower()
+                if flag == "force" or flag == "-f" then
+                    table.insert(jumpheightconnections, humanoid:GetPropertyChangedSignal("JumpHeight"):Connect(function()
+                        if humanoid.JumpHeight ~= value then
+                            humanoid.JumpHeight = value
+                        end
+                    end))
+                    for _, conn in ipairs(jumpheightconnections) do
+                        if conn and conn.Connected then table.insert(connections, conn) end
+                    end
+                    return true, string.format("JumpHeight 已强制锁定为 %.2f", value)
+                else
+                    return false, string.format("无法识别配置 '%s'", extra[1])
+                end
+            end
+
+            return true, "JumpHeight 已设置为 " .. tostring(value)
+        else
+            return false, "未知的操作模式, 请使用 get/set/reset"
+        end
     end
 })
 
 local l33tmap = {
-    ["a"] = "4", ["A"] = "4",
-    ["b"] = "8", ["B"] = "8",
-    ["e"] = "3", ["E"] = "3",
-    ["g"] = "9", ["G"] = "9",
-    ["i"] = "1", ["I"] = "1",
-    ["l"] = "1", ["L"] = "1",
-    ["o"] = "0", ["O"] = "0",
-    ["s"] = "5", ["S"] = "5",
-    ["t"] = "7", ["T"] = "7",
-    ["z"] = "2", ["Z"] = "2",
-    ["大"] = "太", ["小"] = "少",
-    ["日"] = "曰", ["目"] = "且", ["口"] = "囗",
+    -- 英文/数字 (Leet Speak)
+    ["a"] = "4", ["A"] = "4", ["b"] = "8", ["B"] = "8",
+    ["e"] = "3", ["E"] = "3", ["g"] = "9", ["G"] = "9",
+    ["i"] = "1", ["I"] = "1", ["l"] = "1", ["L"] = "1",
+    ["o"] = "0", ["O"] = "0", ["s"] = "5", ["S"] = "5",
+    ["t"] = "7", ["T"] = "7", ["z"] = "2", ["Z"] = "2",
+    
+    -- 中文形近/异体字映射
+    ["大"] = "太", ["少"] = "尐", ["多"] = "夛",
+    ["长"] = "镸", ["短"] = "矬", ["高"] = "髙",
+    ["快"] = "夬", ["慢"] = "漫", ["坏"] = "孬",
+    ["日"] = "曰", ["月"] = "曰", ["目"] = "且",
     ["木"] = "朩", ["水"] = "氺", ["火"] = "灬",
-    ["土"] = "士", ["王"] = "玉", ["主"] = "玉",
+    ["土"] = "士", ["工"] = "土", ["王"] = "玉",
     ["天"] = "夭", ["夫"] = "失", ["未"] = "末",
     ["己"] = "已", ["已"] = "巳", ["子"] = "孑",
     ["刀"] = "刃", ["力"] = "办", ["又"] = "叉",
     ["田"] = "由", ["甲"] = "申", ["干"] = "于",
     ["八"] = "入", ["人"] = "入", ["个"] = "介",
-    ["上"] = "丄", ["下"] = "丅", ["工"] = "土",
-    ["月"] = "曰", ["用"] = "甩", ["同"] = "冋",
+    ["上"] = "丄", ["下"] = "丅", ["用"] = "甩",
     ["米"] = "来", ["半"] = "平", ["羊"] = "美",
     ["心"] = "必", ["思"] = "恩", ["想"] = "相",
     ["你"] = "伱", ["我"] = "莪", ["他"] = "牠",
     ["的"] = "旳", ["是"] = "昰", ["在"] = "洅",
     ["了"] = "ㄋ", ["和"] = "咊", ["与"] = "欤",
     ["为"] = "爲", ["什"] = "甚", ["么"] = "幺",
-    ["好"] = "恏", ["坏"] = "孬", ["多"] = "夛",
-    ["少"] = "尐", ["长"] = "镸", ["短"] = "矬",
-    ["高"] = "髙", ["低"] = "氐", ["快"] = "夬",
-    ["慢"] = "漫", ["来"] = "來", ["去"] = "厾",
-    ["回"] = "囘", ["出"] = "岀", ["进"] = "進",
+    ["去"] = "厾", ["回"] = "囘", ["出"] = "岀",
     ["门"] = "闁", ["开"] = "幵", ["关"] = "関",
     ["爱"] = "嗳", ["恨"] = "狠", ["情"] = "晴",
-    ["请"] = "请", ["谢"] = "榭", ["谢"] = "谢",
-    ["欢"] = "歓", ["迎"] = "迎", ["光"] = "洸",
-    ["临"] = "臨", ["好"] = "好", ["玩"] = "玩",
-    ["游"] = "遊", ["戏"] = "戯", ["软"] = "軟",
-    ["件"] = "伔", ["硬"] = "哽", ["件"] = "伔",
+    ["谢"] = "榭", ["欢"] = "歓", ["光"] = "洸",
+    ["临"] = "臨", ["游"] = "遊", ["戏"] = "戯",
+    ["软"] = "軟", ["件"] = "伔", ["硬"] = "哽",
+    ["进"] = "進", ["来"] = "來", ["同"] = "冋",
+    ["主"] = "玉", ["口"] = "囗", ["低"] = "氐",
+    ["好"] = "恏", ["坏"] = "壞", ["大"] = "夳",
+    ["小"] = "尐", ["地"] = "坔", ["世"] = ""
 }
 
 RegisterCommand("chat", {
     aliases = {"say"},
-    usage = {';chat "消息" [channel == <频道>, format == <模式>]'},
-    description = "在聊天中输出内容",
-    handler = function(args, rawinput, _)
-        local message = rawinput:match(';chat%s*"([^"]*)"') or rawinput:match(';say%s*"([^"]*)"')
-        if not message or message == "" then
-            return false, "命令参数错误: 需要用双引号括起消息内容, 如 ;chat \"hello world\"，消息：", message
+    usage = {';chat <消息> [<频道>, <模式>]'},
+    description = [[在聊天中输出内容
+
+    此操作将会在聊天中输出指定的消息
+    
+    关于参数:
+    <消息> - 必要参数, 需要发送的消息, 必须使用双引号包裹, 例如 ;chat "Hello World"
+
+    关于配置:
+    <频道> - 可选配置, 指定发送消息的频道, 可选值如下:
+    channel == general / system  - 指定频道的长格式参数
+    -g / -s - 分别代表 general / system 的短格式参数
+
+    如果输入别的长格式参数, 将尝试识别频道是否存在并发送消息到该频道, 但不保证成功, 请确保频道名称正确且存在
+
+    <模式> - 可选配置, 消息格式模式, 可选值如下:
+    format == l33t - 指定使用 l33t 模式的长格式参数
+    -l - 使用 l33t 模式的短格式参数]],
+    handler = function(args, raw, extra)
+        local message = raw:match('"([^"]*)"')
+        if not message or message == "" then 
+            return false, "请使用双引号包裹文本，例如 ;chat \"Hello World\"" 
         end
-        local options, channel, usel33t = rawinput:match('%[([^%]]+)%]'), "normal", false
-        if options then
-            local channelmatch = options:match('channel%s*==%s*(%w+)')
-            if channelmatch then
-                channel = channelmatch
-            end
-            local formatmatch = options:match('format%s*==%s*(%w+)')
-            if formatmatch and formatmatch == "l33t" then
-                usel33t = true
+
+        local targetchannel, usel33t = "RBXGeneral", false
+
+        for _, part in ipairs(extra) do
+            local chlong, fmtlong, shortflag = part:match('^channel%s*==%s*(%S+)$'), part:match('^format%s*==%s*(%S+)$'), part:match('^%-(%w+)$')
+
+            if chlong then
+                targetchannel = chlong
+            elseif fmtlong then
+                if fmtlong == "l33t" then
+                    usel33t = true
+                else
+                    return false, "不支持的格式: " .. fmtlong
+                end
+            elseif shortflag then
+                if shortflag == "g" then targetchannel = "RBXGeneral"
+                elseif shortflag == "s" then targetchannel = "RBXSystem"
+                elseif shortflag == "l" then usel33t = true
+                else return false, "无法识别的短参数: " .. part end
+            else
+                return false, "无法识别的配置: " .. part
             end
         end
         if usel33t then
-            local result = ""
-            for i = 1, #message do
-                local char = message:sub(i, i)
-                if l33tmap[char] and math.random() < 0.4 then
-                    result = result .. l33tmap[char]
+            local result = {}
+            for _, codepoint in utf8.codes(message) do
+                local char = utf8.char(codepoint)
+                if l33tmap[char] and math.random() < 0.7 then
+                    table.insert(result, l33tmap[char])
                 else
-                    result = result .. char
+                    table.insert(result, char)
                 end
             end
-            message = result
+            message = table.concat(result)
         end
-        if channel ~= "normal" and channel ~= "system" and channel ~= "n" and channel ~= "s" then
-            TextChatService.TextChannels.channel:SendAsync(message)
-            return true, "非roblox官方频道, 尝试发送消息到输入的频道"
+
+        if targetchannel == "general" or targetchannel == "g" then
+            targetchannel = "RBXGeneral"
+        elseif targetchannel == "system" or targetchannel == "s" then
+            targetchannel = "RBXSystem"
         end
-        if channel == "system" or channel == "s" then
-            local success, err = pcall(function()
-                TextChatService.TextChannels.RBXSystem:SendAsync(message)
-            end)
-            if success then
-                return true, "消息已发送到系统聊天" .. (usel33t and " (l33t 模式)" or "") .. " | 消息：" .. message
-            else
-                return false, "发送失败: " .. tostring(err)
+
+        local channelobj = TextChatService.TextChannels:FindFirstChild(targetchannel)
+
+        if not channelobj then
+            return false, string.format("频道 '%s' 不存在或不可用", targetchannel)
+        end
+
+        local success, err = pcall(function() channelobj:SendAsync(message) end)
+        if success then
+            local modestr = usel33t and " (l33t 模式)" or ""
+            return true, string.format("消息已发送到频道 '%s'%s | 消息：%s", targetchannel, modestr, message)
+        else
+            return false, "发送失败: " .. tostring(err)
+        end
+    end
+})
+
+local flightstauts, flightconnections, lastrebuildtime, flightobjects = false, {}, 0, {
+    LinearVelocity = nil,
+    Attachment = nil,
+    PlatformPart = nil,
+    floatvalue = -31
+}
+
+local function StopFlight() 
+    local rootpart = Localroot()
+    
+    if not rootpart then
+        return false, "无法获取 HumanoidRootPart"
+    end
+
+    for _, connection in ipairs(flightconnections) do
+        if connection and connection.Connected then
+            connection:Disconnect()
+        end
+    end
+
+    local LinearVelocity, Attachment, PlatformPart = rootpart:FindFirstChild("LinearVelocity_Flight"), rootpart:FindFirstChild("Attachment_Flight"), rootpart:FindFirstChild("PlatformPart_Flight")
+
+    if LinearVelocity then 
+        LinearVelocity:Destroy() 
+        log("已销毁飞行用 LinearVelocity", "out")
+    end
+    if Attachment then 
+        Attachment:Destroy()
+        log("已销毁飞行用 Attachment", "out")
+    end
+
+    if rootpart.Anchored then
+        rootpart.Anchored = false
+        log("已取消飞行用 Anchored", "out")
+    end
+
+    if PlatformPart then 
+        PlatformPart:Destroy() 
+        log("已销毁飞行用 PlatformPart", "out")
+    end
+
+    flightstauts, flightconnections, flightobjects = false, {}, {
+        LinearVelocity = nil,
+        Attachment = nil,
+        PlatformPart = nil,
+        floatvalue = -31
+    }
+end
+
+RegisterCommand("flight", {
+    aliases = {"fly"},
+    usage = {";flight {模式}/{状态} {速度, 单位: Studs}"},
+    description = [[飞行!
+
+    关于参数:
+    
+    参数1: 
+    {模式} - 可选参数, 飞行模式或飞行状态, 可选值如下:
+
+    velocity / tpcframe / platform - 指定飞行模式的长格式参数
+
+    velocity 或 v 或 normal 或 n - 默认/速率飞行模式, 使用 LinearVelocity 实现飞行
+    tpcframe 或 tc - 传送飞行模式, 通过不断传送角色来实现飞行
+    platform 或 p - 平台飞行模式, 生成一个平台并将角色固定在平台上来实现飞行 !注意! 平台飞行模式不需要指定速度参数!
+
+    {状态} - 可选参数, 飞行状态, 可选值如下:
+
+    disabled - 立即停止飞行功能
+
+    disabled 或 off - 停止飞行功能
+
+    参数2: 
+    {速度} - 可选参数, 指定飞行速度 (仅适用于普通飞行模式), 默认为 16 Studs/s]],
+    handler = function(args, rawinput, _)
+        local rootpart, camera, humanoid, move, flyspeed = Localroot(), Localcam, Localhum(), args[1] or "normal", args[2] or 16
+
+        if not rootpart then
+            return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
+        elseif #args > 2 then
+            return false, "参数过多"
+        elseif move ~= "normal" and move ~= "velocity" and move ~= "platform" and move ~= "tpcframe" and move ~= "v" and move ~= "n" and move ~= "v" and move ~= "p" and move ~= "tc" and move ~= "disabled" and move ~= "off" then
+            return false, "错误的参数! 飞行模式必须是 normal / velocity / tpcframe / platform 或 n / v / tc / p, 如需关闭飞行, 第一个参数为 disabled 或 off"
+        end
+
+        StopFlight() 
+
+        if move == "normal" or move == "velocity" or move == "n" or move == "v" then
+            local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
+
+            flightobjects.Attachment = Instance.new("Attachment")
+            flightobjects.Attachment.Name = "Attachment_Flight"
+            flightobjects.Attachment.Parent = rootpart
+
+            flightobjects.LinearVelocity = Instance.new("LinearVelocity")
+            flightobjects.LinearVelocity.Name = "LinearVelocity_Flight"
+            flightobjects.LinearVelocity.MaxForce = 1e9
+            flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
+            flightobjects.LinearVelocity.Parent = rootpart
+
+            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+                if not rootpart then
+                    flightstauts = false
+                    StopFlight()
+                    return false, "无法获取 HumanoidRootPart, 结束飞行 (速率飞行)"
+                end
+                
+                local lv, at = flightobjects.LinearVelocity, flightobjects.Attachment
+                
+                if not at and at.Parent then
+                    local nowtime = os.clock()
+                    if nowtime - lastrebuildtime < 0.5 then return end
+                    lastrebuildtime = nowtime
+                    log("飞行组件丢失，正在重建...", "out")
+                    
+                    if at and not at.Parent then at:Destroy() end
+
+                    flightobjects.Attachment = Instance.new("Attachment")
+                    flightobjects.Attachment.Name = "Attachment_Flight"
+                    flightobjects.Attachment.Parent = rootpart
+                    flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
+                    return 
+                end
+
+                if not lv and lv.Parent then
+                    local nowtime = os.clock()
+                    if nowtime - lastrebuildtime < 0.5 then return end
+                    lastrebuildtime = nowtime
+                    log("飞行组件丢失，正在重建...", "out")
+                    
+                    if lv and not lv.Parent then lv:Destroy() end
+
+                    flightobjects.LinearVelocity = Instance.new("LinearVelocity")
+                    flightobjects.LinearVelocity.Name = "LinearVelocity_Flight"
+                    flightobjects.LinearVelocity.MaxForce = 1e9
+                    flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
+                    flightobjects.LinearVelocity.Parent = rootpart
+                    return 
+                end
+                
+                local look, right = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit, Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z).Unit
+                if look.Magnitude == 0 then look = Vector3.new(1, 0, 0) end
+
+                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
+                    control.Left ~= 0 or control.Right ~= 0 or 
+                    control.Up ~= 0 or control.Down ~= 0
+                local forward, strafe, vertical, movedirection = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down, Vector3.new()
+                if forward ~= 0 or strafe ~= 0 then movedirection = (look * forward + right * strafe).Unit end
+
+                if hasinput then
+                    local velocity = Vector3.new()
+                    if movedirection.Magnitude > 0 then velocity += movedirection.Unit * flyspeed * control.SpeedModifier end
+                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
+                    lv.VectorVelocity = velocity
+                else
+                    lv.VectorVelocity = Vector3.new(0, 0, 0)
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
+				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
+					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
+					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
+				end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
+                end
+            end))
+
+            table.insert(flightconnections, humanoid.Died:Connect(function()
+                flightstauts = false
+                StopFlight()
+                log("角色已死亡，结束飞行 (速率飞行)", "out")
+            end))
+            for _, connection in ipairs(flightconnections) do table.insert(connections, connection) end
+            
+            flightstauts = true
+            return true, "飞行(速率飞行)已打开, 速度: " .. flyspeed
+        elseif move == "tpcframe" or move == "tc" then  
+            local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
+
+            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+                if not rootpart then
+                    flightstauts = false
+                    StopFlight()
+                    return false, "无法获取 HumanoidRootPart, 结束飞行 (传送模式)"
+                end
+                
+                local look, right, movedirection = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit, Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z).Unit, Vector3.new()
+			    if look.Magnitude == 0 then 
+                    look = Vector3.new(1, 0, 0) 
+                end
+
+                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
+                    control.Left ~= 0 or control.Right ~= 0 or 
+                    control.Up ~= 0 or control.Down ~= 0
+                local forward, strafe, vertical = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down
+
+                if forward ~= 0 or strafe ~= 0 then movedirection += look * forward + right * strafe end
+
+                if hasinput then
+                    local velocity = Vector3.new()
+                    if movedirection.Magnitude > 0 then velocity += movedirection.Unit * flyspeed * control.SpeedModifier * 0.03 end
+                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier * 0.03, 0)
+                    rootpart.CFrame += velocity
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = -1
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 1
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 1
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
+				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
+					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
+					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
+				end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
+				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
+				elseif input.KeyCode == Enum.KeyCode.A then control.Left = 0
+				elseif input.KeyCode == Enum.KeyCode.D then control.Right = 0
+				elseif input.KeyCode == Enum.KeyCode.Space then control.Up = 0
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = 0
+                end
+            end))
+
+            table.insert(flightconnections, humanoid.Died:Connect(function()
+                flightstauts = false
+                StopFlight()
+                log("角色已死亡，结束飞行 (传送模式)", "out")
+            end))
+
+            table.insert(flightconnections, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
+                if not rootpart.Anchored then
+                    rootpart.Anchored = true
+                end
+            end))
+
+            for _, connection in ipairs(flightconnections) do
+                table.insert(connections, connection)
             end
-        elseif channel == "normal" or channel == "n" then
-            local success, err = pcall(function()
-                TextChatService.TextChannels.RBXGeneral:SendAsync(message)
-            end)
-            if success then
-                return true, "消息已发送到普通聊天" .. (usel33t and " (l33t 模式)" or "") .. " | 消息：" .. message
-            else
-                return false, "发送失败: " .. tostring(err)
+
+            rootpart.Anchored = true
+            flightstauts = true
+            return true, "飞行 (传送模式) 已打开, 速度: " .. flyspeed
+        elseif move == "platform" or move == "p" then
+            if args[2] then
+                return false, "平台飞行模式不需要指定速度参数!"
             end
+
+            flightobjects.PlatformPart = Instance.new("Part")
+            flightobjects.PlatformPart.Name = "PlatformPart_Flight"
+            flightobjects.PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
+            flightobjects.PlatformPart.Anchored = true
+            flightobjects.PlatformPart.CanCollide = true 
+            flightobjects.PlatformPart.Transparency = 0.9
+            flightobjects.PlatformPart.CastShadow = false
+            flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue, 0)
+            flightobjects.PlatformPart.Parent = rootpart
+
+            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+                if not rootpart then 
+                    return false, "无法获取 HumanoidRootPart, 结束飞行 (平台模式)"
+                end
+                
+                local pp = flightobjects.PlatformPart
+
+                if not pp or not pp.Parent then
+                    local nowtime = os.clock()
+                    if nowtime - lastrebuildtime < 0.5 then return end
+                    lastrebuildtime = nowtime
+                    log("平台组件丢失，正在重建...", "out")
+
+                    if pp then pp:Destroy() end
+
+                    flightobjects.PlatformPart = Instance.new("Part")
+                    flightobjects.PlatformPart.Name = "PlatformPart_Flight"
+                    flightobjects.PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
+                    flightobjects.PlatformPart.Anchored = true
+                    flightobjects.PlatformPart.CanCollide = true 
+                    flightobjects.PlatformPart.Transparency = 0.9
+                    flightobjects.PlatformPart.CastShadow = false
+                    flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue, 0)
+                    flightobjects.PlatformPart.Parent = rootpart
+                    return
+                end
+
+                flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue / 10, 0)
+            end))
+
+            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
+				if input.KeyCode == Enum.KeyCode.Space then flightobjects.floatvalue += 5
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then flightobjects.floatvalue -= 5
+                end
+            end))
+
+            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+                if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
+                if input.KeyCode == Enum.KeyCode.Space then flightobjects.floatvalue -= 5
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then flightobjects.floatvalue += 5
+                end
+            end))
+
+            table.insert(flightconnections, humanoid.Died:Connect(function()
+                flightstauts = false
+                StopFlight()
+                log("角色已死亡，结束飞行 (平台模式)", "out")
+            end))
+
+            for _, connection in ipairs(flightconnections) do
+                table.insert(connections, connection)
+            end
+
+            flightstauts = true
+            return true, "飞行 (平台模式) 已打开"
+        elseif move == "disabled" or move == "off" then
+            flightstauts = false
+            StopFlight()
+            return true, "飞行已关闭"
         end
         return false, "未知错误"
     end
