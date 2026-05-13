@@ -1,6 +1,6 @@
 print("\n\n\n")
-VERSION_NUMBER = "00086"
-VERSION_PREFIX = "i"
+VERSION_NUMBER = "00087"
+VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
 COLOR_BUTTON_BACKGROUND = Color3.fromRGB(50, 50, 50)
@@ -2904,14 +2904,12 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         log("按下分号键，正在聚焦命令输入框...", "out")
         RunService.RenderStepped:Wait()
         TextBox_ConsoleInput:CaptureFocus()
-    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
+    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and MainFrame.Visible and Area_Console.Visible then
         log("查看上一条命令输入...", "out")
-        arrowkeypressed = true
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
-    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
+    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and MainFrame.Visible and Area_Console.Visible then
         log("查看下一条命令输入...", "out")
-        arrowkeypressed = true
         commandhistoryindex += 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
         TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
