@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00085"
+VERSION_NUMBER = "00086"
 VERSION_PREFIX = "i"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1922,7 +1922,10 @@ RegisterCommand("walkspeed", {
     
     关于配置:
     <模式> - 可选配置, 设置模式:
-    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改]],
+    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改
+    
+    使用实例:
+    ;walkspeed set 50 - 将 WalkSpeed 设置为 50]],
     handler = function(args, _, extra)
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
@@ -2004,7 +2007,10 @@ RegisterCommand("jumppower", {
 
     关于配置:
     <模式> - 可选配置, 设置模式:
-    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改]],
+    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改
+    
+    使用实例:
+    ;jumppower set 50 - 将 JumpPower 设置为 50]],
     handler = function(args, _, extra)
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
@@ -2086,7 +2092,10 @@ RegisterCommand("jumpheight", {
 
     关于配置:
     <模式> - 可选配置, 设置模式:
-    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改]],
+    force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改
+    
+    使用实例:
+    ;jumpheight set 10 - 将 JumpHeight 设置为 10]],
     handler = function(args, _, extra)
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
@@ -2150,7 +2159,7 @@ RegisterCommand("jumpheight", {
 })
 
 local l33tmap = {
-    -- 英文/数字 (Leet Speak)
+    -- 英文/数字 
     ["a"] = "4", ["A"] = "4", ["b"] = "8", ["B"] = "8",
     ["e"] = "3", ["E"] = "3", ["g"] = "9", ["G"] = "9",
     ["i"] = "1", ["I"] = "1", ["l"] = "1", ["L"] = "1",
@@ -2207,7 +2216,10 @@ RegisterCommand("chat", {
 
     <模式> - 可选配置, 消息格式模式, 可选值如下:
     format == l33t - 指定使用 l33t 模式的长格式参数
-    -l - 使用 l33t 模式的短格式参数]],
+    -l - 使用 l33t 模式的短格式参数
+    
+    使用实例:
+    ;chat "Hello World" channel == general format == l33t - 在 RBXGeneral 频道以 l33t 模式发送消息 "Hello World"]],
     handler = function(args, raw, extra)
         local message = raw:match('"([^"]*)"')
         if not message or message == "" then 
@@ -2343,7 +2355,12 @@ RegisterCommand("flight", {
     disabled 或 off - 停止飞行功能
 
     参数2: 
-    {速度} - 可选参数, 指定飞行速度 (仅适用于普通飞行模式), 默认为 16 Studs/s]],
+    {速度} - 可选参数, 指定飞行速度 (仅适用于普通飞行模式), 默认为 16 Studs/s
+    
+    使用实例:
+    ;flight velocity 50 - 启用速率飞行模式, 飞行速度为 50 Studs/s
+    ;flight platform - 启用平台飞行模式
+    ;flight off - 关闭飞行功能]],
     handler = function(args, rawinput, _)
         local rootpart, camera, humanoid, move, flyspeed = Localroot(), Localcam, Localhum(), args[1] or "normal", args[2] or 16
 
@@ -2620,7 +2637,17 @@ RegisterCommand("flight", {
 RegisterCommand("help", {
     aliases = {"?"},
     usage = {";help [指令名]"},
-    description = "显示所有指令或查看特定指令的详细信息",
+    description = [[显示所有指令或查看特定指令的详细信息
+    
+    此操作将显示所有可用指令的列表, 或者如果提供了指令名参数, 则显示该指令的详细信息
+    
+    关于参数:
+    <指令名> - 可选参数, 需要查看的指令名称或别名, 例如 ;help jumppower 或 ;help jp
+    
+    使用实例:
+    ;help - 显示所有指令列表
+    ;help jumpheight - 显示 jumpheight 指令的详细信息
+    ;help jp - 显示 jumppower 指令的详细信息]],
     handler = function(args, _, _)
         if #args == 0 then
             log("命令格式: <>内为必填项 {}内为选填项 []内为配置项", "out")
@@ -2846,15 +2873,16 @@ table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterp
     end
 end))
 
-local dragging, dragstartpos, framestartpos, arrowkeypressed = false, nil, nil, false
+table.insert(connections, TextBox_ConsoleInput.Focused:Connect(function()
+    if guistatus ~= "active" then return end
+    if TextBox_ConsoleInput.Text == "" then
+        TextBox_ConsoleInput.Text = ";"
+        TextBox_ConsoleInput.CursorPosition = 2
+    end
+end))
 
 table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if guistatus ~= "active" then return end
-    if arrowkeypressed and TextBox_ConsoleInput.Text:sub(-1) == ";" then
-        TextBox_ConsoleInput.Text = TextBox_ConsoleInput.Text:sub(1, -2)
-        arrowkeypressed = false
-        return
-    end
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
         UpdateHintDisplay()
     else
@@ -2864,14 +2892,17 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
     end
 end))
 
+local dragging, dragstartpos, framestartpos = false, nil, nil
+
 table.insert(connections, UserInputService.InputBegan:Connect(function(input)
     if guistatus ~= "active" then return end
 
-    if input.KeyCode == Enum.KeyCode.RightShift and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() then
+    if input.KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() then
         MainFrame.Visible = not MainFrame.Visible
         log("GUI 状态已变为：" .. tostring(MainFrame.Visible), "out")
-    elseif input.KeyCode == Enum.KeyCode.Semicolon and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Semicolon and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
+    elseif input.KeyCode == Enum.KeyCode.Semicolon  and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("按下分号键，正在聚焦命令输入框...", "out")
+        RunService.RenderStepped:Wait()
         TextBox_ConsoleInput:CaptureFocus()
     elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看上一条命令输入...", "out")
@@ -2884,7 +2915,7 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         commandhistoryindex += 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
         TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
-    elseif input.KeyCode == Enum.KeyCode.Delete and UserInputService:GetKeysPressed()[1].KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() then 
+    elseif input.KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() then 
         DestroyNvi()
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistatus == "active" then
         local mousepos, guipos, guisize = Vector2.new(input.Position.X, input.Position.Y), Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
