@@ -6,13 +6,15 @@ COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
 COLOR_BUTTON_BACKGROUND = Color3.fromRGB(50, 50, 50)
 COLOR_BUTTON_BORDER = Color3.fromRGB(10, 10, 10)
 COLOR_TEXT_NORMAL = Color3.fromRGB(200, 200, 200)
-COLOR_TEXT_OVERLAY = Color3.fromRGB(100, 100, 100)
+COLOR_TEXT_OVERLAY = Color3.fromRGB(255, 255, 255)
 COLOR_TEXT_ENABLE = Color3.fromRGB(255, 255, 0)
-COLOR_TEXT_FULLWHITE = Color3.fromRGB(255, 255, 255)
 COLOR_TEXT_RED = Color3.fromRGB(255, 100, 100)
 COLOR_TEXT_GREEN = Color3.fromRGB(100, 255, 100)
 COLOR_TEXT_YELLOW = Color3.fromRGB(255, 255, 100)
 COLOR_TEXT_BLUE = Color3.fromRGB(0, 162, 255)
+local ZINDEX_AREA = 1
+local ZINDEX_UI = 11
+local ZINDEX_INTERACTABLE = 21
 
 local Config = {
     Console = {      
@@ -492,7 +494,7 @@ MainFrame.Size = UDim2.new(0, 900, 0, 600)
 MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
 MainFrame.Visible = true
 MainFrame.BackgroundTransparency = 0.15
-MainFrame.ZIndex = 10
+MainFrame.ZIndex = 5
 MainFrame.Parent = ScreenGui
 
 local Corner_MainFrame = Instance.new("UICorner")
@@ -511,7 +513,7 @@ CrossLine_1.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_1.BorderSizePixel = 0
 CrossLine_1.Size = UDim2.new(1, 0, 0, 3)
 CrossLine_1.Position = UDim2.new(0, 0, 0, 29)
-CrossLine_1.ZIndex = 11
+CrossLine_1.ZIndex = ZINDEX_UI
 CrossLine_1.Parent = MainFrame
 
 local CrossLine_2 = Instance.new("Frame")
@@ -520,7 +522,7 @@ CrossLine_2.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_2.BorderSizePixel = 0
 CrossLine_2.Size = UDim2.new(0, 3, 1, -31)
 CrossLine_2.Position = UDim2.new(0.2, 0, 0, 31)
-CrossLine_2.ZIndex = 11
+CrossLine_2.ZIndex = ZINDEX_UI
 CrossLine_2.Parent = MainFrame
 
 local CrossLine_3 = Instance.new("Frame")
@@ -529,7 +531,7 @@ CrossLine_3.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_3.BorderSizePixel = 0
 CrossLine_3.Size = UDim2.new(0.8, 0, 0, 3)
 CrossLine_3.Position = UDim2.new(0.2, 0, 0, 55)
-CrossLine_3.ZIndex = 11
+CrossLine_3.ZIndex = ZINDEX_UI
 CrossLine_3.Parent = MainFrame
 
 local CrossLine_4 = Instance.new("Frame")
@@ -538,7 +540,7 @@ CrossLine_4.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_4.BorderSizePixel = 0
 CrossLine_4.Size = UDim2.new(0, 3, 0, 26)
 CrossLine_4.Position = UDim2.new(0.7, 0, 0, 31)
-CrossLine_4.ZIndex = 11
+CrossLine_4.ZIndex = ZINDEX_UI
 CrossLine_4.Parent = MainFrame
 
 local CrossLine_5 = Instance.new("Frame")
@@ -547,7 +549,7 @@ CrossLine_5.BackgroundColor3 = COLOR_GUI_BORDER
 CrossLine_5.BorderSizePixel = 0
 CrossLine_5.Size = UDim2.new(0.2, 0, 0, 3)
 CrossLine_5.Position = UDim2.new(0, 0, 0, 55)
-CrossLine_5.ZIndex = 11
+CrossLine_5.ZIndex = ZINDEX_UI
 CrossLine_5.Parent = MainFrame
 
 local Area_MouseOverlay = Instance.new("Frame")
@@ -557,7 +559,7 @@ Area_MouseOverlay.Position = UDim2.new(0, 0, 0, 0)
 Area_MouseOverlay.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_MouseOverlay.Visible = false
 Area_MouseOverlay.Selectable = false
-Area_MouseOverlay.ZIndex = 12
+Area_MouseOverlay.ZIndex = 50
 Area_MouseOverlay.Parent = MainFrame
 
 local Area_Sidebar = Instance.new("Frame")
@@ -566,7 +568,7 @@ Area_Sidebar.BackgroundTransparency = 1
 Area_Sidebar.BorderSizePixel = 0
 Area_Sidebar.Size = UDim2.new(0.2, 0, 0, 26)
 Area_Sidebar.Position = UDim2.new(0, 0, 0, 30)
-Area_Sidebar.ZIndex = 1
+Area_Sidebar.ZIndex = ZINDEX_AREA
 Area_Sidebar.Parent = MainFrame
 
 local Button_Back = Instance.new("TextButton")
@@ -579,7 +581,7 @@ Button_Back.BackgroundTransparency = 1
 Button_Back.BorderSizePixel = 0
 Button_Back.Size = UDim2.new(0, 90, 0.99, 0)
 Button_Back.Position = UDim2.new(0, 0, 0, 1)
-Button_Back.ZIndex = 13
+Button_Back.ZIndex = ZINDEX_INTERACTABLE
 Button_Back.Parent = Area_Sidebar
 
 local Stroke_Button_Back = Instance.new("UIStroke")
@@ -598,7 +600,7 @@ Button_Enter.BackgroundTransparency = 1
 Button_Enter.BorderSizePixel = 0
 Button_Enter.Size = UDim2.new(0, 90, 0.99, 0)
 Button_Enter.Position = UDim2.new(0, 90, 0, 1)
-Button_Enter.ZIndex = 13
+Button_Enter.ZIndex = ZINDEX_INTERACTABLE
 Button_Enter.Parent = Area_Sidebar
 
 local Stroke_Button_Enter = Instance.new("UIStroke")
@@ -613,7 +615,7 @@ Area_Module.BackgroundTransparency = 1
 Area_Module.BorderSizePixel = 0
 Area_Module.Size = UDim2.new(0.2, 0, 1, -56)
 Area_Module.Position = UDim2.new(0, 0, 0, 56)
-Area_Module.ZIndex = 1
+Area_Module.ZIndex = ZINDEX_AREA
 Area_Module.Parent = MainFrame
 
 local Area_Config = Instance.new("Frame")
@@ -622,7 +624,7 @@ Area_Config.BackgroundTransparency = 1
 Area_Config.BorderSizePixel = 0
 Area_Config.Size = UDim2.new(0.8, -3, 1, -57)
 Area_Config.Position = UDim2.new(0.2, 3, 0, 57)
-Area_Config.ZIndex = 1
+Area_Config.ZIndex = ZINDEX_AREA
 Area_Config.Parent = MainFrame
 
 local Area_Info = Instance.new("Frame")
@@ -632,7 +634,7 @@ Area_Info.BorderSizePixel = 0
 Area_Info.Size = UDim2.new(1, 0, 1, 0)
 Area_Info.Position = UDim2.new(0, 0, 0, 0)
 Area_Info.Visible = false
-Area_Info.ZIndex = 1
+Area_Info.ZIndex = ZINDEX_AREA
 Area_Info.Parent = Area_Config
 
 local Area_Console = Instance.new("Frame")
@@ -642,8 +644,18 @@ Area_Console.BorderSizePixel = 0
 Area_Console.Size = UDim2.new(1, 0, 1, 0)
 Area_Console.Position = UDim2.new(0, 0, 0, 0)
 Area_Console.Visible = false
-Area_Console.ZIndex = 1
+Area_Console.ZIndex = ZINDEX_AREA
 Area_Console.Parent = Area_Config
+
+local CrossLine_ConsoleInput = Instance.new("Frame")
+CrossLine_ConsoleInput.Name = "CrossLine"
+CrossLine_ConsoleInput.BackgroundColor3 = COLOR_GUI_BORDER
+CrossLine_ConsoleInput.BackgroundTransparency = 0
+CrossLine_ConsoleInput.BorderSizePixel = 0
+CrossLine_ConsoleInput.Size = UDim2.new(1, 0, 0, 3)
+CrossLine_ConsoleInput.Position = UDim2.new(0, 0, 0.95, -3)
+CrossLine_ConsoleInput.ZIndex = ZINDEX_UI
+CrossLine_ConsoleInput.Parent = Area_Console
 
 local Area_ConsoleInput = Instance.new("Frame")
 Area_ConsoleInput.Name = "Area_ConsoleInput"
@@ -682,18 +694,18 @@ TextBox_ConsoleInput.TextWrapped = false
 TextBox_ConsoleInput.ClearTextOnFocus = false
 TextBox_ConsoleInput.ClipsDescendants = true
 TextBox_ConsoleInput.MaxVisibleGraphemes = 200
-TextBox_ConsoleInput.ZIndex = 13
+TextBox_ConsoleInput.ZIndex = ZINDEX_INTERACTABLE
 TextBox_ConsoleInput.Parent = Area_ConsoleInput
 
 local Area_ConsoleInputHint = Instance.new("Frame")
 Area_ConsoleInputHint.Name = "Area_ConsoleInputHint"
 Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, 25)
-Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -30)
+Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -40)
 Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_ConsoleInputHint.BackgroundTransparency = 0.3
 Area_ConsoleInputHint.BorderSizePixel = 0
 Area_ConsoleInputHint.Visible = false
-Area_ConsoleInputHint.ZIndex = 20
+Area_ConsoleInputHint.ZIndex = 29
 Area_ConsoleInputHint.Parent = Area_ConsoleInput
 
 local Corner_ConsoleInputHint = Instance.new("UICorner")
@@ -713,7 +725,7 @@ Area_ConsoleOutput.BackgroundTransparency = 0.8
 Area_ConsoleOutput.BorderColor3 = COLOR_BUTTON_BORDER
 Area_ConsoleOutput.Size = UDim2.new(0.99, 0, 0, 480)
 Area_ConsoleOutput.Position = UDim2.new(0.005, 0, 0, 35)
-Area_ConsoleOutput.ZIndex = 1
+Area_ConsoleOutput.ZIndex = ZINDEX_AREA
 Area_ConsoleOutput.Parent = Area_Console
 
 Scroll_ConsoleOutput = Instance.new("ScrollingFrame")
@@ -736,7 +748,7 @@ Area_ConsoleSettings.BackgroundTransparency = 0.8
 Area_ConsoleSettings.BorderColor3 = COLOR_BUTTON_BORDER
 Area_ConsoleSettings.Size = UDim2.new(0.99, 0, 0, 30)
 Area_ConsoleSettings.Position = UDim2.new(0.005, 0, 0, 5)
-Area_ConsoleSettings.ZIndex = 1
+Area_ConsoleSettings.ZIndex = ZINDEX_AREA
 Area_ConsoleSettings.Parent = Area_Console
 
 local UIList_ConsoleSetting = Instance.new("UIListLayout")
@@ -758,7 +770,7 @@ PlaceHolder_ConsoleSetting.TextTransparency = 1
 PlaceHolder_ConsoleSetting.BackgroundTransparency = 1
 PlaceHolder_ConsoleSetting.Size = UDim2.new(0, 0, 1, 0)
 PlaceHolder_ConsoleSetting.LayoutOrder = 1
-PlaceHolder_ConsoleSetting.ZIndex = 13
+PlaceHolder_ConsoleSetting.ZIndex = ZINDEX_AREA
 PlaceHolder_ConsoleSetting.Parent = Area_ConsoleSettings
 
 local UIListLayout_Console = Instance.new("UIListLayout")
@@ -785,7 +797,7 @@ Area_Settings.BorderSizePixel = 0
 Area_Settings.Size = UDim2.new(1, 0, 1, 0)
 Area_Settings.Position = UDim2.new(0, 0, 0, 0)
 Area_Settings.Visible = false
-Area_Settings.ZIndex = 1
+Area_Settings.ZIndex = ZINDEX_AREA
 Area_Settings.Parent = Area_Config
 
 Scroll_Settings = Instance.new("ScrollingFrame")
@@ -808,7 +820,7 @@ Area_Title.BorderSizePixel = 0
 Area_Title.Size = UDim2.new(1, 0, 0, 29)
 Area_Title.Position = UDim2.new(0, 0, 0, 0)
 Area_Title.Visible = true
-Area_Title.ZIndex = 1
+Area_Title.ZIndex = ZINDEX_AREA
 Area_Title.Parent = MainFrame
 
 local Text_Info = Instance.new("TextLabel")
@@ -823,7 +835,7 @@ Text_Info.Size = UDim2.new(1, 0, 1, 0)
 Text_Info.Position = UDim2.new(0, 0, 0, 0)
 Text_Info.TextXAlignment = Enum.TextXAlignment.Center
 Text_Info.TextYAlignment = Enum.TextYAlignment.Center
-Text_Info.ZIndex = 13
+Text_Info.ZIndex = 11
 Text_Info.Parent = Area_Title
 
 local Area_ModuleList = Instance.new("Frame")
@@ -832,7 +844,7 @@ Area_ModuleList.BackgroundTransparency = 1
 Area_ModuleList.BorderSizePixel = 0
 Area_ModuleList.Size = UDim2.new(0.5, 0, 0, 26)
 Area_ModuleList.Position = UDim2.new(0.2, 0, 0, 31)
-Area_ModuleList.ZIndex = 1
+Area_ModuleList.ZIndex = ZINDEX_AREA
 Area_ModuleList.Parent = MainFrame
 
 local UIList_ModuleList = Instance.new("UIListLayout")
@@ -854,7 +866,7 @@ PlaceHolder_ModuleList.TextTransparency = 1
 PlaceHolder_ModuleList.BackgroundTransparency = 1
 PlaceHolder_ModuleList.Size = UDim2.new(0, 10, 0, 24)
 PlaceHolder_ModuleList.LayoutOrder = 1
-PlaceHolder_ModuleList.ZIndex = 13
+PlaceHolder_ModuleList.ZIndex = ZINDEX_AREA
 PlaceHolder_ModuleList.Parent = Area_ModuleList
 
 local Area_SettingList = Instance.new("Frame")
@@ -863,7 +875,7 @@ Area_SettingList.BackgroundTransparency = 1
 Area_SettingList.BorderSizePixel = 0
 Area_SettingList.Size = UDim2.new(0.3, 0, 0, 26)
 Area_SettingList.Position = UDim2.new(0.7, 0, 0, 31)
-Area_SettingList.ZIndex = 1
+Area_SettingList.ZIndex = ZINDEX_AREA
 Area_SettingList.Parent = MainFrame
 
 local UIList_SettingList = Instance.new("UIListLayout")
@@ -885,7 +897,7 @@ PlaceHolder_SettingList.TextTransparency = 1
 PlaceHolder_SettingList.BackgroundTransparency = 1
 PlaceHolder_SettingList.Size = UDim2.new(0, 1, 0, 24)
 PlaceHolder_SettingList.LayoutOrder = 999
-PlaceHolder_SettingList.ZIndex = 13
+PlaceHolder_SettingList.ZIndex = ZINDEX_AREA
 PlaceHolder_SettingList.Parent = Area_SettingList
 
 local showsettinglist, showmodulelist = nil, nil
@@ -981,7 +993,7 @@ local function CreateModuleListButton(text, codename, order)
     Button.TextSize = 14
     Button.LayoutOrder = order
     Button.Size = UDim2.new(0, GetTextWidth(text, Button.TextSize, Button.Font), 0, 24)
-    Button.ZIndex = 13
+    Button.ZIndex = ZINDEX_INTERACTABLE
     Button.Parent = Area_ModuleList
 
     local Underline = Instance.new("Frame")
@@ -991,7 +1003,7 @@ local function CreateModuleListButton(text, codename, order)
     Underline.Position = UDim2.new(0, 0, 0.9, -1)
     Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
     Underline.BackgroundTransparency = 1
-    Underline.ZIndex = 13
+    Underline.ZIndex = ZINDEX_INTERACTABLE
     Underline.Parent = Button
 
     table.insert(connections, Button.MouseEnter:Connect(function()
@@ -1037,13 +1049,13 @@ local function CreateSettingListButton(text, codename, order)
     Button.TextSize = 14
     Button.LayoutOrder = order
     Button.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
-    Button.ZIndex = 13
+    Button.ZIndex = ZINDEX_INTERACTABLE
     Button.Parent = Area_SettingList
 
     table.insert(connections, Button.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_FULLWHITE})
+        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
         tween:Play()
         dragstauts = false
     end))
@@ -1078,7 +1090,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     Container.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 30, 0, 24)
     Container.BackgroundTransparency = 1
     Container.LayoutOrder = order
-    Container.ZIndex = 13
+    Container.ZIndex = 20
     Container.Parent = Area_ConsoleSettings
 
     local Label = Instance.new("TextLabel")
@@ -1090,7 +1102,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     Label.TextSize = 14
     Label.Font = Enum.Font.Code
     Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.ZIndex = 13
+    Label.ZIndex = ZINDEX_INTERACTABLE
     Label.Parent = Container
 
     local ButtonFrame = Instance.new("TextButton")
@@ -1102,7 +1114,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     ButtonFrame.BorderColor3 = COLOR_BUTTON_BORDER
     ButtonFrame.BorderSizePixel = 1.5
     ButtonFrame.Text = ""  
-    ButtonFrame.ZIndex = 13
+    ButtonFrame.ZIndex = ZINDEX_INTERACTABLE
     ButtonFrame.Parent = Container
 
     local ButtonCore = Instance.new("Frame")
@@ -1382,7 +1394,7 @@ local function UpdateHintDisplay()
     local displaycount = math.min(#matches, 12)
     local totalheight = displaycount * 20 + 5
     Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, totalheight)
-    Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 5)
+    Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 15)
     for i = 1, displaycount do
         if not matches[i] then break end
 
@@ -1401,7 +1413,7 @@ local function UpdateHintDisplay()
         HintButton.Text = matches[i].displayname
         HintButton.TextXAlignment = Enum.TextXAlignment.Left
         HintButton.TextColor3 = COLOR_TEXT_NORMAL
-        HintButton.ZIndex = 21
+        HintButton.ZIndex = 30
         HintButton.Parent = Area_ConsoleInputHint
 
         local HintUnderline = Instance.new("Frame")
@@ -1411,7 +1423,7 @@ local function UpdateHintDisplay()
         HintUnderline.Position = UDim2.new(0, 0, 0.9, -1)
         HintUnderline.BackgroundColor3 = COLOR_TEXT_OVERLAY
         HintUnderline.BackgroundTransparency = 1
-        HintUnderline.ZIndex = 21
+        HintUnderline.ZIndex = 30
         HintUnderline.Parent = HintButton
 
         table.insert(connections, HintButton.MouseEnter:Connect(function()
@@ -2194,7 +2206,7 @@ local l33tmap = {
     ["进"] = "進", ["来"] = "來", ["同"] = "冋",
     ["主"] = "玉", ["口"] = "囗", ["低"] = "氐",
     ["好"] = "恏", ["坏"] = "壞", ["大"] = "夳",
-    ["小"] = "尐", ["地"] = "坔", ["世"] = ""
+    ["小"] = "尐", ["地"] = "坔", ["世"] = "丗"
 }
 
 RegisterCommand("chat", {
@@ -2745,7 +2757,7 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
         memorycolor = COLOR_TEXT_NORMAL
     end
 
-    local postext, poscolor = "(X:? Y:? Z:?)", COLOR_TEXT_OVERLAY
+    local postext, poscolor = "(X:? Y:? Z:?)", COLOR_TEXT_NORMAL
     if Localcam and Localcam.Focus then
         local pos = Localcam.Focus.Position
         postext = string.format("(X:%.1f Y:%.1f Z:%.1f)", pos.X, pos.Y, pos.Z)
@@ -2904,11 +2916,11 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         log("按下分号键，正在聚焦命令输入框...", "out")
         RunService.RenderStepped:Wait()
         TextBox_ConsoleInput:CaptureFocus()
-    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and MainFrame.Visible and Area_Console.Visible then
+    elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看上一条命令输入...", "out")
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
-    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and MainFrame.Visible and Area_Console.Visible then
+    elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看下一条命令输入...", "out")
         commandhistoryindex += 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
