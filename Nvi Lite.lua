@@ -1,20 +1,21 @@
 print("\n\n\n")
-VERSION_NUMBER = "00087"
+VERSION_NUMBER = "00088"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
 COLOR_BUTTON_BACKGROUND = Color3.fromRGB(50, 50, 50)
 COLOR_BUTTON_BORDER = Color3.fromRGB(10, 10, 10)
 COLOR_TEXT_NORMAL = Color3.fromRGB(200, 200, 200)
-COLOR_TEXT_OVERLAY = Color3.fromRGB(255, 255, 255)
+COLOR_TEXT_OVERLAY = Color3.fromRGB(0, 140, 205)
 COLOR_TEXT_ENABLE = Color3.fromRGB(255, 255, 0)
-COLOR_TEXT_RED = Color3.fromRGB(255, 100, 100)
-COLOR_TEXT_GREEN = Color3.fromRGB(100, 255, 100)
-COLOR_TEXT_YELLOW = Color3.fromRGB(255, 255, 100)
+COLOR_TEXT_RED = Color3.fromRGB(195, 87, 74)
+COLOR_TEXT_GREEN = Color3.fromRGB(139, 247, 139)
+COLOR_TEXT_YELLOW = Color3.fromRGB(255, 218, 68)
 COLOR_TEXT_BLUE = Color3.fromRGB(0, 162, 255)
 local ZINDEX_AREA = 1
-local ZINDEX_UI = 11
-local ZINDEX_INTERACTABLE = 21
+local ZINDEX_UI = 20
+local ZINDEX_LABEL = 27
+local ZINDEX_INTERACTABLE = 30
 
 local Config = {
     Console = {      
@@ -378,9 +379,11 @@ local function DestroyNvi()
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
     end
 
-    for _, connection in ipairs(connections) do
-		if connection and connection.Connected then connection:Disconnect() end
-	end
+    for i = #connections, 1, -1 do
+        local conn = connections[i]
+        if conn and conn.Connected then conn:Disconnect() end
+        connections[i] = nil
+    end
 
     log("已销毁 :)", "out")
     guistatus = "destroy"
@@ -476,7 +479,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NVIScreenGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-ScreenGui.DisplayOrder = 999
+ScreenGui.DisplayOrder = 128
 ScreenGui.Parent = CoreGui
 
 local Version = Instance.new("NumberValue")
@@ -487,6 +490,16 @@ Version:SetAttribute("Prefix", VERSION_PREFIX)
 Version:SetAttribute("Number", VERSION_NUMBER)
 Version:SetAttribute("Status", guistatus)
 
+local MouseTips = Instance.new("Frame")
+MouseTips.Name = "MouseTips"
+MouseTips.Size = UDim2.new(0, 100, 0, 30)
+MouseTips.Position = UDim2.new(0, 0, 0, 0)
+MouseTips.BackgroundColor3 = COLOR_GUI_BACKGROUND
+MouseTips.Visible = false
+MouseTips.Selectable = false
+MouseTips.ZIndex = 80
+MouseTips.Parent = MainFrame
+
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "GuiMainFrame"
 MainFrame.BackgroundColor3 = COLOR_GUI_BACKGROUND
@@ -494,73 +507,63 @@ MainFrame.Size = UDim2.new(0, 900, 0, 600)
 MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
 MainFrame.Visible = true
 MainFrame.BackgroundTransparency = 0.15
-MainFrame.ZIndex = 5
+MainFrame.ZIndex = 10
 MainFrame.Parent = ScreenGui
 
-local Corner_MainFrame = Instance.new("UICorner")
-Corner_MainFrame.CornerRadius = UDim.new(0, 7)
-Corner_MainFrame.Parent = MainFrame
+local UICorner_MainFrame = Instance.new("UICorner")
+UICorner_MainFrame.CornerRadius = UDim.new(0, 7)
+UICorner_MainFrame.Parent = MainFrame
 
-local Stroke_MainFrame = Instance.new("UIStroke")
-Stroke_MainFrame.Color = COLOR_GUI_BORDER
-Stroke_MainFrame.Thickness = 3
-Stroke_MainFrame.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke_MainFrame.Parent = MainFrame
+local UIStroke_MainFrame = Instance.new("UIStroke")
+UIStroke_MainFrame.Color = COLOR_GUI_BORDER
+UIStroke_MainFrame.Thickness = 3
+UIStroke_MainFrame.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke_MainFrame.Parent = MainFrame
 
-local CrossLine_1 = Instance.new("Frame")
-CrossLine_1.Name = "CrossLine_1"
-CrossLine_1.BackgroundColor3 = COLOR_GUI_BORDER
-CrossLine_1.BorderSizePixel = 0
-CrossLine_1.Size = UDim2.new(1, 0, 0, 3)
-CrossLine_1.Position = UDim2.new(0, 0, 0, 29)
-CrossLine_1.ZIndex = ZINDEX_UI
-CrossLine_1.Parent = MainFrame
+local Line_1 = Instance.new("Frame")
+Line_1.Name = "Line_1"
+Line_1.BackgroundColor3 = COLOR_GUI_BORDER
+Line_1.BorderSizePixel = 0
+Line_1.Size = UDim2.new(1, 0, 0, 3)
+Line_1.Position = UDim2.new(0, 0, 0, 29)
+Line_1.ZIndex = ZINDEX_UI
+Line_1.Parent = MainFrame
 
-local CrossLine_2 = Instance.new("Frame")
-CrossLine_2.Name = "CrossLine_2"
-CrossLine_2.BackgroundColor3 = COLOR_GUI_BORDER
-CrossLine_2.BorderSizePixel = 0
-CrossLine_2.Size = UDim2.new(0, 3, 1, -31)
-CrossLine_2.Position = UDim2.new(0.2, 0, 0, 31)
-CrossLine_2.ZIndex = ZINDEX_UI
-CrossLine_2.Parent = MainFrame
+local Line_2 = Instance.new("Frame")
+Line_2.Name = "Line_2"
+Line_2.BackgroundColor3 = COLOR_GUI_BORDER
+Line_2.BorderSizePixel = 0
+Line_2.Size = UDim2.new(0, 3, 1, -31)
+Line_2.Position = UDim2.new(0.2, 0, 0, 31)
+Line_2.ZIndex = ZINDEX_UI
+Line_2.Parent = MainFrame
 
-local CrossLine_3 = Instance.new("Frame")
-CrossLine_3.Name = "CrossLine_3"
-CrossLine_3.BackgroundColor3 = COLOR_GUI_BORDER
-CrossLine_3.BorderSizePixel = 0
-CrossLine_3.Size = UDim2.new(0.8, 0, 0, 3)
-CrossLine_3.Position = UDim2.new(0.2, 0, 0, 55)
-CrossLine_3.ZIndex = ZINDEX_UI
-CrossLine_3.Parent = MainFrame
+local Line_3 = Instance.new("Frame")
+Line_3.Name = "Line_3"
+Line_3.BackgroundColor3 = COLOR_GUI_BORDER
+Line_3.BorderSizePixel = 0
+Line_3.Size = UDim2.new(0.8, 0, 0, 3)
+Line_3.Position = UDim2.new(0.2, 0, 0, 55)
+Line_3.ZIndex = ZINDEX_UI
+Line_3.Parent = MainFrame
 
-local CrossLine_4 = Instance.new("Frame")
-CrossLine_4.Name = "CrossLine_4"
-CrossLine_4.BackgroundColor3 = COLOR_GUI_BORDER
-CrossLine_4.BorderSizePixel = 0
-CrossLine_4.Size = UDim2.new(0, 3, 0, 26)
-CrossLine_4.Position = UDim2.new(0.7, 0, 0, 31)
-CrossLine_4.ZIndex = ZINDEX_UI
-CrossLine_4.Parent = MainFrame
+local Line_4 = Instance.new("Frame")
+Line_4.Name = "Line_4"
+Line_4.BackgroundColor3 = COLOR_GUI_BORDER
+Line_4.BorderSizePixel = 0
+Line_4.Size = UDim2.new(0, 3, 0, 26)
+Line_4.Position = UDim2.new(0.7, 0, 0, 31)
+Line_4.ZIndex = ZINDEX_UI
+Line_4.Parent = MainFrame
 
-local CrossLine_5 = Instance.new("Frame")
-CrossLine_5.Name = "CrossLine_5"
-CrossLine_5.BackgroundColor3 = COLOR_GUI_BORDER
-CrossLine_5.BorderSizePixel = 0
-CrossLine_5.Size = UDim2.new(0.2, 0, 0, 3)
-CrossLine_5.Position = UDim2.new(0, 0, 0, 55)
-CrossLine_5.ZIndex = ZINDEX_UI
-CrossLine_5.Parent = MainFrame
-
-local Area_MouseOverlay = Instance.new("Frame")
-Area_MouseOverlay.Name = "Area_MouseOverlay"
-Area_MouseOverlay.Size = UDim2.new(0, 100, 0, 30)
-Area_MouseOverlay.Position = UDim2.new(0, 0, 0, 0)
-Area_MouseOverlay.BackgroundColor3 = COLOR_GUI_BACKGROUND
-Area_MouseOverlay.Visible = false
-Area_MouseOverlay.Selectable = false
-Area_MouseOverlay.ZIndex = 50
-Area_MouseOverlay.Parent = MainFrame
+local Line_5 = Instance.new("Frame")
+Line_5.Name = "Line_5"
+Line_5.BackgroundColor3 = COLOR_GUI_BORDER
+Line_5.BorderSizePixel = 0
+Line_5.Size = UDim2.new(0.2, 0, 0, 3)
+Line_5.Position = UDim2.new(0, 0, 0, 55)
+Line_5.ZIndex = ZINDEX_UI
+Line_5.Parent = MainFrame
 
 local Area_Sidebar = Instance.new("Frame")
 Area_Sidebar.Name = "Area_Sidebar"
@@ -571,43 +574,43 @@ Area_Sidebar.Position = UDim2.new(0, 0, 0, 30)
 Area_Sidebar.ZIndex = ZINDEX_AREA
 Area_Sidebar.Parent = MainFrame
 
-local Button_Back = Instance.new("TextButton")
-Button_Back.Name = "Button_Back"
-Button_Back.Text = "<-"
-Button_Back.Font = Enum.Font.Code
-Button_Back.TextColor3 = COLOR_TEXT_NORMAL
-Button_Back.TextSize = 14
-Button_Back.BackgroundTransparency = 1
-Button_Back.BorderSizePixel = 0
-Button_Back.Size = UDim2.new(0, 90, 0.99, 0)
-Button_Back.Position = UDim2.new(0, 0, 0, 1)
-Button_Back.ZIndex = ZINDEX_INTERACTABLE
-Button_Back.Parent = Area_Sidebar
+local TextButton_Back = Instance.new("TextButton")
+TextButton_Back.Name = "TextButton_Back"
+TextButton_Back.Text = "<-"
+TextButton_Back.Font = Enum.Font.Code
+TextButton_Back.TextColor3 = COLOR_TEXT_NORMAL
+TextButton_Back.TextSize = 14
+TextButton_Back.BackgroundTransparency = 1
+TextButton_Back.BorderSizePixel = 0
+TextButton_Back.Size = UDim2.new(0, 90, 0.99, 0)
+TextButton_Back.Position = UDim2.new(0, 0, 0, 1)
+TextButton_Back.ZIndex = ZINDEX_INTERACTABLE
+TextButton_Back.Parent = Area_Sidebar
 
-local Stroke_Button_Back = Instance.new("UIStroke")
-Stroke_Button_Back.Color = COLOR_GUI_BORDER
-Stroke_Button_Back.Thickness = 2
-Stroke_Button_Back.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke_Button_Back.Parent = Button_Back
+local UIStroke_TextButton_Back = Instance.new("UIStroke")
+UIStroke_TextButton_Back.Color = COLOR_GUI_BORDER
+UIStroke_TextButton_Back.Thickness = 2
+UIStroke_TextButton_Back.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke_TextButton_Back.Parent = TextButton_Back
 
-local Button_Enter = Instance.new("TextButton")
-Button_Enter.Name = "Button_Enter"
-Button_Enter.Text = "->"
-Button_Enter.Font = Enum.Font.Code
-Button_Enter.TextColor3 = COLOR_TEXT_NORMAL
-Button_Enter.TextSize = 14
-Button_Enter.BackgroundTransparency = 1
-Button_Enter.BorderSizePixel = 0
-Button_Enter.Size = UDim2.new(0, 90, 0.99, 0)
-Button_Enter.Position = UDim2.new(0, 90, 0, 1)
-Button_Enter.ZIndex = ZINDEX_INTERACTABLE
-Button_Enter.Parent = Area_Sidebar
+local TextButton_Enter = Instance.new("TextButton")
+TextButton_Enter.Name = "TextButton_Enter"
+TextButton_Enter.Text = "->"
+TextButton_Enter.Font = Enum.Font.Code
+TextButton_Enter.TextColor3 = COLOR_TEXT_NORMAL
+TextButton_Enter.TextSize = 14
+TextButton_Enter.BackgroundTransparency = 1
+TextButton_Enter.BorderSizePixel = 0
+TextButton_Enter.Size = UDim2.new(0, 90, 0.99, 0)
+TextButton_Enter.Position = UDim2.new(0, 90, 0, 1)
+TextButton_Enter.ZIndex = ZINDEX_INTERACTABLE
+TextButton_Enter.Parent = Area_Sidebar
 
-local Stroke_Button_Enter = Instance.new("UIStroke")
-Stroke_Button_Enter.Color = COLOR_GUI_BORDER
-Stroke_Button_Enter.Thickness = 2
-Stroke_Button_Enter.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke_Button_Enter.Parent = Button_Enter
+local UIStroke_TextButton_Enter = Instance.new("UIStroke")
+UIStroke_TextButton_Enter.Color = COLOR_GUI_BORDER
+UIStroke_TextButton_Enter.Thickness = 2
+UIStroke_TextButton_Enter.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke_TextButton_Enter.Parent = TextButton_Enter
 
 local Area_Module = Instance.new("Frame")
 Area_Module.Name = "Area_Module"
@@ -647,16 +650,6 @@ Area_Console.Visible = false
 Area_Console.ZIndex = ZINDEX_AREA
 Area_Console.Parent = Area_Config
 
-local CrossLine_ConsoleInput = Instance.new("Frame")
-CrossLine_ConsoleInput.Name = "CrossLine"
-CrossLine_ConsoleInput.BackgroundColor3 = COLOR_GUI_BORDER
-CrossLine_ConsoleInput.BackgroundTransparency = 0
-CrossLine_ConsoleInput.BorderSizePixel = 0
-CrossLine_ConsoleInput.Size = UDim2.new(1, 0, 0, 3)
-CrossLine_ConsoleInput.Position = UDim2.new(0, 0, 0.95, -3)
-CrossLine_ConsoleInput.ZIndex = ZINDEX_UI
-CrossLine_ConsoleInput.Parent = Area_Console
-
 local Area_ConsoleInput = Instance.new("Frame")
 Area_ConsoleInput.Name = "Area_ConsoleInput"
 Area_ConsoleInput.Size = UDim2.new(0.99, 0, 0, 25)
@@ -664,7 +657,7 @@ Area_ConsoleInput.Position = UDim2.new(0.005, 0, 0.95, 0)
 Area_ConsoleInput.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_ConsoleInput.BackgroundTransparency = 0.8
 Area_ConsoleInput.BorderColor3 = COLOR_BUTTON_BORDER
-Area_ConsoleInput.ZIndex = 12
+Area_ConsoleInput.ZIndex = 21
 Area_ConsoleInput.Parent = Area_Console
 
 table.insert(connections, Area_ConsoleInput.MouseEnter:Connect(function()
@@ -697,6 +690,24 @@ TextBox_ConsoleInput.MaxVisibleGraphemes = 200
 TextBox_ConsoleInput.ZIndex = ZINDEX_INTERACTABLE
 TextBox_ConsoleInput.Parent = Area_ConsoleInput
 
+local TextLabel_ConsoleInputTipLabel = Instance.new("TextLabel")
+TextLabel_ConsoleInputTipLabel.Name = "TextLabel_ConsoleInputTipLabel"
+TextLabel_ConsoleInputTipLabel.ZIndex = 25
+TextLabel_ConsoleInputTipLabel.BorderSizePixel = 0
+TextLabel_ConsoleInputTipLabel.BackgroundTransparency = 0.3
+TextLabel_ConsoleInputTipLabel.BackgroundColor3 = COLOR_GUI_BACKGROUND
+TextLabel_ConsoleInputTipLabel.TextColor3 = COLOR_TEXT_NORMAL
+TextLabel_ConsoleInputTipLabel.TextXAlignment = Enum.TextXAlignment.Center
+TextLabel_ConsoleInputTipLabel.TextYAlignment = Enum.TextYAlignment.Center
+TextLabel_ConsoleInputTipLabel.Font = Enum.Font.Code
+TextLabel_ConsoleInputTipLabel.TextSize = 14
+TextLabel_ConsoleInputTipLabel.Text = "提示"
+TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
+TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, 0, 0.91, 0)
+TextLabel_ConsoleInputTipLabel.Visible = false
+TextLabel_ConsoleInputTipLabel.ZIndex = ZINDEX_LABEL
+TextLabel_ConsoleInputTipLabel.Parent = Area_Console
+
 local Area_ConsoleInputHint = Instance.new("Frame")
 Area_ConsoleInputHint.Name = "Area_ConsoleInputHint"
 Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, 25)
@@ -705,20 +716,20 @@ Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_ConsoleInputHint.BackgroundTransparency = 0.3
 Area_ConsoleInputHint.BorderSizePixel = 0
 Area_ConsoleInputHint.Visible = false
-Area_ConsoleInputHint.ZIndex = 29
+Area_ConsoleInputHint.ZIndex = 50
 Area_ConsoleInputHint.Parent = Area_ConsoleInput
 
-local Corner_ConsoleInputHint = Instance.new("UICorner")
-Corner_ConsoleInputHint.CornerRadius = UDim.new(0, 3)
-Corner_ConsoleInputHint.Parent = Area_ConsoleInputHint
+local UICorner_ConsoleInputHint = Instance.new("UICorner")
+UICorner_ConsoleInputHint.CornerRadius = UDim.new(0, 3)
+UICorner_ConsoleInputHint.Parent = Area_ConsoleInputHint
 
-local Stroke_ConsoleInputHint = Instance.new("UIStroke")
-Stroke_ConsoleInputHint.Color = COLOR_GUI_BORDER
-Stroke_ConsoleInputHint.Thickness = 2
-Stroke_ConsoleInputHint.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke_ConsoleInputHint.Parent = Area_ConsoleInputHint
+local UIStroke_ConsoleInputHint = Instance.new("UIStroke")
+UIStroke_ConsoleInputHint.Color = COLOR_GUI_BORDER
+UIStroke_ConsoleInputHint.Thickness = 2
+UIStroke_ConsoleInputHint.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke_ConsoleInputHint.Parent = Area_ConsoleInputHint
 
-Area_ConsoleOutput = Instance.new("Frame")
+local Area_ConsoleOutput = Instance.new("Frame")
 Area_ConsoleOutput.Name = "Area_ConsoleOutput"
 Area_ConsoleOutput.BackgroundColor3 = COLOR_GUI_BACKGROUND
 Area_ConsoleOutput.BackgroundTransparency = 0.8
@@ -728,28 +739,28 @@ Area_ConsoleOutput.Position = UDim2.new(0.005, 0, 0, 35)
 Area_ConsoleOutput.ZIndex = ZINDEX_AREA
 Area_ConsoleOutput.Parent = Area_Console
 
-Scroll_ConsoleOutput = Instance.new("ScrollingFrame")
-Scroll_ConsoleOutput.Name = "Scroll_ConsoleOutput"
-Scroll_ConsoleOutput.Size = UDim2.new(1, 0, 0, 470)
-Scroll_ConsoleOutput.Position = UDim2.new(0, 0, 0, 10)
-Scroll_ConsoleOutput.BackgroundTransparency = 1
-Scroll_ConsoleOutput.BorderSizePixel = 0
-Scroll_ConsoleOutput.ScrollBarThickness = 9
-Scroll_ConsoleOutput.ScrollBarImageTransparency = 0.5
-Scroll_ConsoleOutput.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Scroll_ConsoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
-Scroll_ConsoleOutput.ZIndex = 12
-Scroll_ConsoleOutput.Parent = Area_ConsoleOutput
+local ScrollingFrame_ConsoleOutput = Instance.new("ScrollingFrame")
+ScrollingFrame_ConsoleOutput.Name = "ScrollingFrame_ConsoleOutput"
+ScrollingFrame_ConsoleOutput.Size = UDim2.new(1, 0, 0, 470)
+ScrollingFrame_ConsoleOutput.Position = UDim2.new(0, 0, 0, 10)
+ScrollingFrame_ConsoleOutput.BackgroundTransparency = 1
+ScrollingFrame_ConsoleOutput.BorderSizePixel = 0
+ScrollingFrame_ConsoleOutput.ScrollBarThickness = 9
+ScrollingFrame_ConsoleOutput.ScrollBarImageTransparency = 0.5
+ScrollingFrame_ConsoleOutput.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollingFrame_ConsoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame_ConsoleOutput.ZIndex = ZINDEX_LABEL
+ScrollingFrame_ConsoleOutput.Parent = Area_ConsoleOutput
 
-Area_ConsoleSettings = Instance.new("Frame")
-Area_ConsoleSettings.Name = "Area_ConsoleSettings"
-Area_ConsoleSettings.BackgroundColor3 = COLOR_GUI_BACKGROUND
-Area_ConsoleSettings.BackgroundTransparency = 0.8
-Area_ConsoleSettings.BorderColor3 = COLOR_BUTTON_BORDER
-Area_ConsoleSettings.Size = UDim2.new(0.99, 0, 0, 30)
-Area_ConsoleSettings.Position = UDim2.new(0.005, 0, 0, 5)
-Area_ConsoleSettings.ZIndex = ZINDEX_AREA
-Area_ConsoleSettings.Parent = Area_Console
+local Area_ConsoleOutputSettings = Instance.new("Frame")
+Area_ConsoleOutputSettings.Name = "Area_ConsoleOutputSettings"
+Area_ConsoleOutputSettings.BackgroundColor3 = COLOR_GUI_BACKGROUND
+Area_ConsoleOutputSettings.BackgroundTransparency = 0.8
+Area_ConsoleOutputSettings.BorderColor3 = COLOR_BUTTON_BORDER
+Area_ConsoleOutputSettings.Size = UDim2.new(0.99, 0, 0, 30)
+Area_ConsoleOutputSettings.Position = UDim2.new(0.005, 0, 0, 5)
+Area_ConsoleOutputSettings.ZIndex = ZINDEX_AREA
+Area_ConsoleOutputSettings.Parent = Area_Console
 
 local UIList_ConsoleSetting = Instance.new("UIListLayout")
 UIList_ConsoleSetting.Name = "UIList_ConsoleSetting"
@@ -758,7 +769,7 @@ UIList_ConsoleSetting.FillDirection = Enum.FillDirection.Horizontal
 UIList_ConsoleSetting.HorizontalAlignment = Enum.HorizontalAlignment.Left
 UIList_ConsoleSetting.VerticalAlignment = Enum.VerticalAlignment.Center
 UIList_ConsoleSetting.Padding = UDim.new(0, 30)
-UIList_ConsoleSetting.Parent = Area_ConsoleSettings
+UIList_ConsoleSetting.Parent = Area_ConsoleOutputSettings
 
 local PlaceHolder_ConsoleSetting = Instance.new("TextLabel")
 PlaceHolder_ConsoleSetting.Name = "PlaceHolder_ConsoleSetting"
@@ -771,21 +782,21 @@ PlaceHolder_ConsoleSetting.BackgroundTransparency = 1
 PlaceHolder_ConsoleSetting.Size = UDim2.new(0, 0, 1, 0)
 PlaceHolder_ConsoleSetting.LayoutOrder = 1
 PlaceHolder_ConsoleSetting.ZIndex = ZINDEX_AREA
-PlaceHolder_ConsoleSetting.Parent = Area_ConsoleSettings
+PlaceHolder_ConsoleSetting.Parent = Area_ConsoleOutputSettings
 
 local UIListLayout_Console = Instance.new("UIListLayout")
 UIListLayout_Console.Name = "UIListLayout_Console"
 UIListLayout_Console.Padding = UDim.new(0, 2)
 UIListLayout_Console.HorizontalAlignment = Enum.HorizontalAlignment.Left
 UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
-UIListLayout_Console.Parent = Scroll_ConsoleOutput
+UIListLayout_Console.Parent = ScrollingFrame_ConsoleOutput
 
-table.insert(connections, Scroll_ConsoleOutput.MouseEnter:Connect(function()
+table.insert(connections, ScrollingFrame_ConsoleOutput.MouseEnter:Connect(function()
     if guistatus ~= "active" then return end
     dragstauts = false
 end))
 
-table.insert(connections, Scroll_ConsoleOutput.MouseLeave:Connect(function()
+table.insert(connections, ScrollingFrame_ConsoleOutput.MouseLeave:Connect(function()
     if guistatus ~= "active" then return end
     dragstauts = true
 end))
@@ -800,18 +811,18 @@ Area_Settings.Visible = false
 Area_Settings.ZIndex = ZINDEX_AREA
 Area_Settings.Parent = Area_Config
 
-Scroll_Settings = Instance.new("ScrollingFrame")
-Scroll_Settings.Name = "Scroll_Settings"
-Scroll_Settings.Size = UDim2.new(1, 0, 1, 0)
-Scroll_Settings.Position = UDim2.new(0, 0, 0, 0)
-Scroll_Settings.BackgroundTransparency = 1
-Scroll_Settings.BorderSizePixel = 0
-Scroll_Settings.ScrollBarThickness = 9
-Scroll_Settings.ScrollBarImageTransparency = 0.5
-Scroll_Settings.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Scroll_Settings.CanvasSize = UDim2.new(0, 0, 0, 0)
-Scroll_Settings.ZIndex = 12
-Scroll_Settings.Parent = Area_Settings
+local ScrollingFrame_Settings = Instance.new("ScrollingFrame")
+ScrollingFrame_Settings.Name = "ScrollingFrame_Settings"
+ScrollingFrame_Settings.Size = UDim2.new(1, 0, 1, 0)
+ScrollingFrame_Settings.Position = UDim2.new(0, 0, 0, 0)
+ScrollingFrame_Settings.BackgroundTransparency = 1
+ScrollingFrame_Settings.BorderSizePixel = 0
+ScrollingFrame_Settings.ScrollBarThickness = 9
+ScrollingFrame_Settings.ScrollBarImageTransparency = 0.5
+ScrollingFrame_Settings.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollingFrame_Settings.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame_Settings.ZIndex = ZINDEX_LABEL
+ScrollingFrame_Settings.Parent = Area_Settings
 
 local Area_Title = Instance.new("Frame")
 Area_Title.Name = "Area_Title"
@@ -823,20 +834,20 @@ Area_Title.Visible = true
 Area_Title.ZIndex = ZINDEX_AREA
 Area_Title.Parent = MainFrame
 
-local Text_Info = Instance.new("TextLabel")
-Text_Info.Name = "Info_Display"
-Text_Info.Text = "FPS: -- | Ping: --ms | CPU: --% | Memory: --MB | Position: (X:? Y:? Z:?)"
-Text_Info.RichText = true
-Text_Info.TextColor3 = COLOR_TEXT_NORMAL
-Text_Info.TextSize = 14
-Text_Info.Font = Enum.Font.Code
-Text_Info.BackgroundTransparency = 1
-Text_Info.Size = UDim2.new(1, 0, 1, 0)
-Text_Info.Position = UDim2.new(0, 0, 0, 0)
-Text_Info.TextXAlignment = Enum.TextXAlignment.Center
-Text_Info.TextYAlignment = Enum.TextYAlignment.Center
-Text_Info.ZIndex = 11
-Text_Info.Parent = Area_Title
+local TextLabel_PreformenceInfo = Instance.new("TextLabel")
+TextLabel_PreformenceInfo.Name = "TextLabel_PreformenceInfo"
+TextLabel_PreformenceInfo.Text = "FPS: -- | Ping: --ms | CPU: --% | Memory: --MB | Position: (X:? Y:? Z:?)"
+TextLabel_PreformenceInfo.RichText = true
+TextLabel_PreformenceInfo.TextColor3 = COLOR_TEXT_NORMAL
+TextLabel_PreformenceInfo.TextSize = 14
+TextLabel_PreformenceInfo.Font = Enum.Font.Code
+TextLabel_PreformenceInfo.BackgroundTransparency = 1
+TextLabel_PreformenceInfo.Size = UDim2.new(1, 0, 1, 0)
+TextLabel_PreformenceInfo.Position = UDim2.new(0, 0, 0, 0)
+TextLabel_PreformenceInfo.TextXAlignment = Enum.TextXAlignment.Center
+TextLabel_PreformenceInfo.TextYAlignment = Enum.TextYAlignment.Center
+TextLabel_PreformenceInfo.ZIndex = ZINDEX_LABEL
+TextLabel_PreformenceInfo.Parent = Area_Title
 
 local Area_ModuleList = Instance.new("Frame")
 Area_ModuleList.Name = "Area_ModuleList"
@@ -847,14 +858,14 @@ Area_ModuleList.Position = UDim2.new(0.2, 0, 0, 31)
 Area_ModuleList.ZIndex = ZINDEX_AREA
 Area_ModuleList.Parent = MainFrame
 
-local UIList_ModuleList = Instance.new("UIListLayout")
-UIList_ModuleList.Name = "UIList_ModuleList"
-UIList_ModuleList.SortOrder = Enum.SortOrder.LayoutOrder
-UIList_ModuleList.FillDirection = Enum.FillDirection.Horizontal
-UIList_ModuleList.HorizontalAlignment = Enum.HorizontalAlignment.Left
-UIList_ModuleList.VerticalAlignment = Enum.VerticalAlignment.Center
-UIList_ModuleList.Padding = UDim.new(0, 30)
-UIList_ModuleList.Parent = Area_ModuleList
+local UIListlayout_ModuleList = Instance.new("UIListLayout")
+UIListlayout_ModuleList.Name = "UIListlayout_ModuleList"
+UIListlayout_ModuleList.SortOrder = Enum.SortOrder.LayoutOrder
+UIListlayout_ModuleList.FillDirection = Enum.FillDirection.Horizontal
+UIListlayout_ModuleList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListlayout_ModuleList.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListlayout_ModuleList.Padding = UDim.new(0, 30)
+UIListlayout_ModuleList.Parent = Area_ModuleList
 
 local PlaceHolder_ModuleList = Instance.new("TextLabel")
 PlaceHolder_ModuleList.Name = "PlaceHolder_ModuleList"
@@ -878,14 +889,14 @@ Area_SettingList.Position = UDim2.new(0.7, 0, 0, 31)
 Area_SettingList.ZIndex = ZINDEX_AREA
 Area_SettingList.Parent = MainFrame
 
-local UIList_SettingList = Instance.new("UIListLayout")
-UIList_SettingList.Name = "UIList_SettingList"
-UIList_SettingList.SortOrder = Enum.SortOrder.LayoutOrder
-UIList_SettingList.FillDirection = Enum.FillDirection.Horizontal
-UIList_SettingList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-UIList_SettingList.VerticalAlignment = Enum.VerticalAlignment.Center
-UIList_SettingList.Padding = UDim.new(0, 30)
-UIList_SettingList.Parent = Area_SettingList
+local UIListlayout_SettingList = Instance.new("UIListLayout")
+UIListlayout_SettingList.Name = "UIListlayout_SettingList"
+UIListlayout_SettingList.SortOrder = Enum.SortOrder.LayoutOrder
+UIListlayout_SettingList.FillDirection = Enum.FillDirection.Horizontal
+UIListlayout_SettingList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+UIListlayout_SettingList.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListlayout_SettingList.Padding = UDim.new(0, 30)
+UIListlayout_SettingList.Parent = Area_SettingList
 
 local PlaceHolder_SettingList = Instance.new("TextLabel")
 PlaceHolder_SettingList.Name = "PlaceHolder_SettingList"
@@ -941,7 +952,7 @@ showsettinglist = "console"
 NavigationHistory:Push("console")
 UpdateAreaStats()
 
-table.insert(connections, Button_Enter.MouseButton1Click:Connect(function()
+table.insert(connections, TextButton_Enter.MouseButton1Click:Connect(function()
     if guistatus ~= "active" then return end
     local entry = NavigationHistory:Enter()
     if entry then
@@ -950,7 +961,7 @@ table.insert(connections, Button_Enter.MouseButton1Click:Connect(function()
     end
 end))
 
-table.insert(connections, Button_Back.MouseButton1Click:Connect(function()
+table.insert(connections, TextButton_Back.MouseButton1Click:Connect(function()
     if guistatus ~= "active" then return end
     local back = NavigationHistory:Back()
     if back then
@@ -960,8 +971,8 @@ table.insert(connections, Button_Back.MouseButton1Click:Connect(function()
 end))
 
 local function RefreshConsoleDisplay()
-    if not Scroll_ConsoleOutput or guistatus ~= "active" then return end
-    for _, child in ipairs(Scroll_ConsoleOutput:GetChildren()) do
+    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
+    for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
         if child:IsA("TextLabel") then
             local messagetype = child:GetAttribute("MessageType") or "INFO"
             if messagetype == "ERROR" then
@@ -984,17 +995,17 @@ end
 local function CreateModuleListButton(text, codename, order)
     if guistatus ~= "active" then return end
 
-    local Button = Instance.new("TextButton")
-    Button.Name = "TextButton_ModuleList" .. codename
-    Button.Text = text
-    Button.BackgroundTransparency = 1
-    Button.Font = Enum.Font.Code
-    Button.TextColor3 = COLOR_TEXT_NORMAL
-    Button.TextSize = 14
-    Button.LayoutOrder = order
-    Button.Size = UDim2.new(0, GetTextWidth(text, Button.TextSize, Button.Font), 0, 24)
-    Button.ZIndex = ZINDEX_INTERACTABLE
-    Button.Parent = Area_ModuleList
+    local TextButton = Instance.new("TextButton")
+    TextButton.Name = "TextButton_ModuleList" .. codename
+    TextButton.Text = text
+    TextButton.BackgroundTransparency = 1
+    TextButton.Font = Enum.Font.Code
+    TextButton.TextColor3 = COLOR_TEXT_NORMAL
+    TextButton.TextSize = 14
+    TextButton.LayoutOrder = order
+    TextButton.Size = UDim2.new(0, GetTextWidth(text, TextButton.TextSize, TextButton.Font), 0, 24)
+    TextButton.ZIndex = ZINDEX_INTERACTABLE
+    TextButton.Parent = Area_ModuleList
 
     local Underline = Instance.new("Frame")
     Underline.Name = "Underline_ModuleList" .. codename
@@ -1004,71 +1015,71 @@ local function CreateModuleListButton(text, codename, order)
     Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
     Underline.BackgroundTransparency = 1
     Underline.ZIndex = ZINDEX_INTERACTABLE
-    Underline.Parent = Button
+    Underline.Parent = TextButton
 
-    table.insert(connections, Button.MouseEnter:Connect(function()
+    local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    table.insert(connections, TextButton.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
-        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+        local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
         tween:Play()
         local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
         tween:Play()
         dragstauts = false
     end))
 
-    table.insert(connections, Button.MouseLeave:Connect(function()
+    table.insert(connections, TextButton.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
-        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+        local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
         tween:Play()
         local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
         tween:Play()
         dragstauts = true
     end))
 
-    table.insert(connections, Button.MouseButton1Click:Connect(function()
+    table.insert(connections, TextButton.MouseButton1Click:Connect(function()
         if guistatus ~= "active" then return end
         showmodulelist = codename
     end))
 
-    return Button
+    return TextButton
 end
 
 local function CreateSettingListButton(text, codename, order)
     if guistatus ~= "active" then return end
 
-    local Button = Instance.new("TextButton")
-    Button.Name = "TextButton_SettingList" .. codename
-    Button.Text = text
-    Button.BackgroundTransparency = 0.7
-    Button.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
-    Button.BorderSizePixel = 1
-    Button.BorderColor3 = COLOR_BUTTON_BORDER
-    Button.Font = Enum.Font.Code
-    Button.TextColor3 = COLOR_TEXT_NORMAL
-    Button.TextSize = 14
-    Button.LayoutOrder = order
-    Button.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
-    Button.ZIndex = ZINDEX_INTERACTABLE
-    Button.Parent = Area_SettingList
+    local TextButton = Instance.new("TextButton")
+    TextButton.Name = "TextButton_SettingList" .. codename
+    TextButton.Text = text
+    TextButton.BackgroundTransparency = 0.7
+    TextButton.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    TextButton.BorderSizePixel = 1
+    TextButton.BorderColor3 = COLOR_BUTTON_BORDER
+    TextButton.Font = Enum.Font.Code
+    TextButton.TextColor3 = COLOR_TEXT_NORMAL
+    TextButton.TextSize = 14
+    TextButton.LayoutOrder = order
+    TextButton.Size = UDim2.new(0, GetTextWidth(text) + 5, 0, 20)
+    TextButton.ZIndex = ZINDEX_INTERACTABLE
+    TextButton.Parent = Area_SettingList
 
-    table.insert(connections, Button.MouseEnter:Connect(function()
+    local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    table.insert(connections, TextButton.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
-        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+        local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
         tween:Play()
         dragstauts = false
     end))
 
-    table.insert(connections, Button.MouseLeave:Connect(function()
+    table.insert(connections, TextButton.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
-        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(Button, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+        local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
         tween:Play()
         dragstauts = true
     end))
 
-    table.insert(connections, Button.MouseButton1Click:Connect(function()
+    table.insert(connections, TextButton.MouseButton1Click:Connect(function()
         if guistatus ~= "active" then return end
         if showsettinglist == codename then
             showsettinglist = nil
@@ -1079,43 +1090,43 @@ local function CreateSettingListButton(text, codename, order)
         UpdateAreaStats()
     end))
 
-    return Button
+    return TextButton
 end
 
 local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
     if guistatus ~= "active" then return end
 
-    local Container = Instance.new("Frame")
-    Container.Name = "Container" .. codename
-    Container.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 30, 0, 24)
-    Container.BackgroundTransparency = 1
-    Container.LayoutOrder = order
-    Container.ZIndex = 20
-    Container.Parent = Area_ConsoleSettings
+    local ButtonContainer = Instance.new("Frame")
+    ButtonContainer.Name = "ButtonContainer" .. codename
+    ButtonContainer.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 30, 0, 24)
+    ButtonContainer.BackgroundTransparency = 1
+    ButtonContainer.LayoutOrder = order
+    ButtonContainer.ZIndex = ZINDEX_AREA
+    ButtonContainer.Parent = Area_ConsoleSettings
 
-    local Label = Instance.new("TextLabel")
-    Label.Name = "TextLabel_ButtonText" .. codename
-    Label.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code), 0.9, 0)
-    Label.Text = text
-    Label.BackgroundTransparency = 1
-    Label.TextColor3 = COLOR_TEXT_NORMAL
-    Label.TextSize = 14
-    Label.Font = Enum.Font.Code
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.ZIndex = ZINDEX_INTERACTABLE
-    Label.Parent = Container
+    local ButtonTextLabel = Instance.new("TextLabel")
+    ButtonTextLabel.Name = "TextLabel_ButtonText" .. codename
+    ButtonTextLabel.Size = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code), 0.9, 0)
+    ButtonTextLabel.Text = text
+    ButtonTextLabel.BackgroundTransparency = 1
+    ButtonTextLabel.TextColor3 = COLOR_TEXT_NORMAL
+    ButtonTextLabel.TextSize = 14
+    ButtonTextLabel.Font = Enum.Font.Code
+    ButtonTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ButtonTextLabel.ZIndex = ZINDEX_INTERACTABLE
+    ButtonTextLabel.Parent = ButtonContainer
 
-    local ButtonFrame = Instance.new("TextButton")
-    ButtonFrame.Name = "TextButton_ButtonFrame"
-    ButtonFrame.Size = UDim2.new(0, 20, 0, 20)
-    ButtonFrame.Position = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 5, 0.5, -10)
-    ButtonFrame.BackgroundTransparency = 0.1 
-    ButtonFrame.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
-    ButtonFrame.BorderColor3 = COLOR_BUTTON_BORDER
-    ButtonFrame.BorderSizePixel = 1.5
-    ButtonFrame.Text = ""  
-    ButtonFrame.ZIndex = ZINDEX_INTERACTABLE
-    ButtonFrame.Parent = Container
+    local ButtonCoreFrame = Instance.new("TextButton")
+    ButtonCoreFrame.Name = "TextButton_ButtonFrame"
+    ButtonCoreFrame.Size = UDim2.new(0, 20, 0, 20)
+    ButtonCoreFrame.Position = UDim2.new(0, GetTextWidth(text, 14, Enum.Font.Code) + 5, 0.5, -10)
+    ButtonCoreFrame.BackgroundTransparency = 0.1 
+    ButtonCoreFrame.BackgroundColor3 = COLOR_BUTTON_BACKGROUND
+    ButtonCoreFrame.BorderColor3 = COLOR_BUTTON_BORDER
+    ButtonCoreFrame.BorderSizePixel = 1.5
+    ButtonCoreFrame.Text = ""  
+    ButtonCoreFrame.ZIndex = ZINDEX_INTERACTABLE
+    ButtonCoreFrame.Parent = ButtonContainer
 
     local ButtonCore = Instance.new("Frame")
     ButtonCore.Name = "Frame_ButtonCore"
@@ -1131,32 +1142,32 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
         ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0)
         ButtonCore.BackgroundTransparency = 1
     end
-    ButtonCore.ZIndex = 13
-    ButtonCore.Parent = ButtonFrame
+    ButtonCore.ZIndex = 21
+    ButtonCore.Parent = ButtonCoreFrame
 
     local buttonstauts = defaultstauts
 
-    table.insert(connections, Container.MouseEnter:Connect(function()
+    table.insert(connections, ButtonContainer.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
         dragstauts = false
     end))
 
-    table.insert(connections, Container.MouseLeave:Connect(function()
+    table.insert(connections, ButtonContainer.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
         dragstauts = true
     end))
 
-    table.insert(connections, ButtonFrame.MouseEnter:Connect(function()
+    table.insert(connections, ButtonCoreFrame.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
         dragstauts = false
     end))
 
-    table.insert(connections, ButtonFrame.MouseLeave:Connect(function()
+    table.insert(connections, ButtonCoreFrame.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
         dragstauts = true
     end))
 
-    table.insert(connections, ButtonFrame.MouseButton1Click:Connect(function()
+    table.insert(connections, ButtonCoreFrame.MouseButton1Click:Connect(function()
         if guistatus ~= "active" then return end
         buttonstauts = not buttonstauts
         local newsize, newposition, newtransparency = buttonstauts and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 0, 0, 0), buttonstauts and UDim2.new(0.5, -5, 0.5, -5) or UDim2.new(0.5, 0, 0.5, 0), buttonstauts and 0 or 1 
@@ -1191,7 +1202,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
             return buttonstauts
         end,
         Destroy = function()
-            Container:Destroy()
+            ButtonContainer:Destroy()
         end
     }
 end
@@ -1230,9 +1241,7 @@ local commandlist, commandmap, commandinputlist, commandhistoryindex = {}, {}, {
 local function ExecuteCommand(rawinput: string): (boolean, string?)
     if guistatus ~= "active" then return end 
     
-    local extra, extraset = {}, {}
-
-    local bracketmatch = rawinput:match('%[(.-)%]')
+    local extra, extraset, bracketmatch = {}, {}, rawinput:match('%[(.-)%]')
     if bracketmatch then
         for part in bracketmatch:gmatch("([^,]+)") do
             local value = part:match("^%s*(.-)%s*$")
@@ -1243,14 +1252,12 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
         end
     end
 
-    local cleantext = rawinput:gsub("%s*%[.*%]$", ""):gsub("^%s*;?", "")
-    local parts = {}
+    local cleantext, parts = rawinput:gsub("%s*%[.*%]$", ""):gsub("^%s*;?", ""), {}
     for part in cleantext:gmatch("[^%s]+") do
         table.insert(parts, part)
     end
 
-    local cmdname = parts[1]
-    local args = {}
+    local cmdname, args = parts[1], {}
     for i = 2, #parts do
         if not extraset[parts[i]] then
             table.insert(args, parts[i])
@@ -1298,8 +1305,8 @@ local function RegisterCommand(name: string, config: {
 })
     if guistatus ~= "active" then return end
 
-    if not config.description or not config.handler then
-        log("命令注册失败: 缺少 描述 (description) 或 处理器 (handler) - " .. name, "error")
+    if not config.handler then
+        log("命令注册失败: 缺少执行部分 - " .. name, "error")
         return false
     end
 
@@ -1413,7 +1420,7 @@ local function UpdateHintDisplay()
         HintButton.Text = matches[i].displayname
         HintButton.TextXAlignment = Enum.TextXAlignment.Left
         HintButton.TextColor3 = COLOR_TEXT_NORMAL
-        HintButton.ZIndex = 30
+        HintButton.ZIndex = 53
         HintButton.Parent = Area_ConsoleInputHint
 
         local HintUnderline = Instance.new("Frame")
@@ -1423,12 +1430,13 @@ local function UpdateHintDisplay()
         HintUnderline.Position = UDim2.new(0, 0, 0.9, -1)
         HintUnderline.BackgroundColor3 = COLOR_TEXT_OVERLAY
         HintUnderline.BackgroundTransparency = 1
-        HintUnderline.ZIndex = 30
+        HintUnderline.ZIndex = 53
         HintUnderline.Parent = HintButton
+
+        local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
         table.insert(connections, HintButton.MouseEnter:Connect(function()
             if guistatus ~= "active" then return end
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
             tween:Play()
             local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
@@ -1438,7 +1446,6 @@ local function UpdateHintDisplay()
 
         table.insert(connections, HintButton.MouseLeave:Connect(function()
             if guistatus ~= "active" then return end
-            local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
             tween:Play()
             local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
@@ -1461,7 +1468,7 @@ local function UpdateHintDisplay()
 end
 
 RegisterCommand("leave", {
-    aliases = {},
+    aliases = {"quit", "exit"},
     usage = {";leave"},
     description = [[退出当前服务器
 
@@ -1472,13 +1479,10 @@ RegisterCommand("leave", {
     使用实例:
     ;leave]],
     handler = function(args, _, _)
-        if #args > 0 then
-            return false, "多余的参数!"
-        else
-            game:Shutdown()
-            return true, "已退出"
-        end
-        return false, "未知错误"
+        if #args > 0 then return false, "多余的参数!" end
+            
+        game:Shutdown()
+        return true, "已退出游戏"
     end
 })
 
@@ -1494,13 +1498,10 @@ RegisterCommand("unload", {
     使用实例:
     ;unload]],
     handler = function(args, _, _)
-        if #args > 0 then
-            return false, "多余的参数!"
-        else
-            DestroyNvi()
-            return true, "已销毁"
-        end
-        return false, "未知错误"
+        if #args > 0 then return false, "多余的参数!" end
+
+        DestroyNvi()
+        return true, "已销毁"
     end
 })
 
@@ -1521,20 +1522,19 @@ RegisterCommand("rejoin", {
             return false, "无法访问 TeleportService"
         elseif #args > 0 then
             return false, "多余的参数!"
-        else
-            if #Players:GetPlayers() <= 1 then
-                Players.LocalPlayer:Kick("\n正在重连... 如需中断请点击离开按钮")
-                task.wait()
-                TeleportService:Teleport(PlaceId, localplayer)
-            else
-                Players.LocalPlayer:Kick("\n正在重连... 如需中断请点击离开按钮")
-                task.wait()
-                TeleportService:TeleportToPlaceInstance(PlaceId, JobId, localplayer)
-            end
-            task.delay(1, DestroyNvi)
-            return true, "已重连"
         end
-        return false, "未知错误"
+
+        if #Players:GetPlayers() <= 1 then
+            Players.LocalPlayer:Kick("\n正在重连... 如需中断请点击离开按钮")
+            task.wait(0.08)
+            TeleportService:Teleport(PlaceId, localplayer)
+        else
+            Players.LocalPlayer:Kick("\n正在重连... 如需中断请点击离开按钮")
+            task.wait(0.08)
+            TeleportService:TeleportToPlaceInstance(PlaceId, JobId, localplayer)
+        end
+        task.delay(1, DestroyNvi)            
+        return true, "已重连"
     end
 })
 
@@ -1550,20 +1550,23 @@ RegisterCommand("suicide", {
     使用实例:
     ;suicide]],
     handler = function(args, _, _)
-        local humanoid = Localhum()
+        local humanoid, localplayer = Localhum(), Localplayer()
         if not humanoid then
             return false, "无法获取 Humanoid"
         elseif #args > 0 then
             return false, "多余的参数!"
-        else
-            humanoid.Health = 0
-            return true, "已重生"
         end
-        return false, "未知错误"
+
+        pcall(function()
+            humanoid.Health = 0
+            task.wait(0.08)
+            localplayer:LoadCharacter()
+        end)
+        return true, "已触发角色重置"   
     end
 })
 
-local sitstauts, sitconnections = nil, {}
+local sitconnections = {}
 
 RegisterCommand("sit", {
     aliases = {},
@@ -1573,150 +1576,72 @@ RegisterCommand("sit", {
     此操作将使你的角色坐下或站起
     
     关于参数:
-    {状态} - 必要参数, 角色坐下状态, 可选值如下:
+    {状态} - 可选参数, 角色坐下状态, 留空将自动切换当前状态, 可选值如下:
     enabled 或 on - 开启坐下功能
     disabled 或 off - 关闭坐下功能
     
-    
     关于配置: 
     <模式> - 可选配置, 坐下模式, 可选值如下:
-    force 或 -f - 强制模式 (如果受到别的脚本干预导致角色被坐下或被站起, 将自动重新坐下或站起)
+    force 或 -f - 强制模式 (抵抗其他脚本或游戏机制的干预)
     
     使用实例:
     ;sit on [-f] - 启用坐下功能, 并开启强制模式]],
     handler = function(args, _, extra)
-        local humanoid, character = Localhum(), Localchar()
-
-        sitstauts = humanoid and humanoid.Sit
-        for _, connection in ipairs(sitconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
+        local humanoid = Localhum()
+        if not humanoid then return false, "无法获取 Humanoid" end
+            
+        for i = #sitconnections, 1, -1 do
+            local conn = sitconnections[i]
+            if conn and conn.Connected then conn:Disconnect() end
+            sitconnections[i] = nil
         end
-        if not humanoid then
-            return false, "无法获取 Humanoid"
-        elseif #args == 0 then
-            if #extra > 0 then
-                if extra[1] == "force" or extra[1] == "-f" then
-                    table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
-                        if humanoid.Sit ~= sitstauts then   
-                            humanoid.Sit = sitstauts
-                        end
-                    end))
 
-                    for _, connection in ipairs(sitconnections) do
-                        table.insert(connections, connection)
-                    end
-                else
-                    return false, string.format("无法识别参数 '%s'", extra[1])
-                end
-            end
-            humanoid.Sit = not sitstauts
-            sitstauts = not sitstauts
-            if sitstauts then    
-                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
-                    table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
-                        if humanoid.Sit ~= true then
-                            humanoid.Sit = true
-                        end
-                    end))
-
-                    for _, connection in ipairs(sitconnections) do
-                        table.insert(connections, connection)
-                    end
-                    return true, "角色已坐下 (强制模式)"
-                else
-                    return true, "角色已坐下"
-                end
-                return false, "未知错误"
+        local issitting, statestr, targetstate = humanoid.Sit, args[1], nil
+        if statestr then
+            if statestr == "enabled" or statestr == "on" then
+                targetstate = true
+            elseif statestr == "disabled" or statestr == "off" then
+                targetstate = false
             else
-                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
-                    table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
-                        if humanoid.Sit ~= false then
-                            humanoid.Sit = false
-                        end
-                    end))
-
-                    for _, connection in ipairs(sitconnections) do
-                        table.insert(connections, connection)
-                    end
-                    return true, "角色已站起 (强制模式)"
-                else
-                    return true, "角色已站起"
-                end
-                return false, "未知错误"
+                return false, string.format("无法识别状态 '%s'，允许值: enabled/on, disabled/off", statestr)
             end
-            return false, "未知错误"
-        elseif args[2] then
-            return false, "参数过多!"
         else
-            if args[1] == "enabled" or args[1] == "on" then
-                if #extra > 0 then
-                    for _, part in ipairs(extra) do
-                        if extra[1] == "force" or extra[1] == "-f" then
-                            table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
-                                if humanoid.Sit ~= true then
-                                    humanoid.Sit = true
-                                end
-                            end))
+            targetstate = not issitting
+        end
 
-                            for _, connection in ipairs(sitconnections) do
-                                table.insert(connections, connection)
-                            end
-                        else
-                            return false, string.format("无法识别参数 '%s'", part)
-                        end
-                    end
-                elseif #extra > 1 then
-                    return false, "配置参数过多!"
-                end
-                sitstauts = true
-                humanoid.Sit = true
-                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
-                    return true, "角色已坐下 (强制模式)"
-                else
-                    return true, "角色已坐下"
-                end
-                return false, "未知错误"
-            elseif args[1] == "disabled" or args[1] == "off" then
-                if #extra > 0 then
-                    for _, part in ipairs(extra) do
-                        if extra[1] == "force" or extra[1] == "-f" then
-                            table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
-                                if humanoid.Sit ~= false then
-                                    humanoid.Sit = false
-                                end
-                            end))
-
-                            for _, connection in ipairs(sitconnections) do
-                                table.insert(connections, connection)
-                            end
-                        else
-                            return false, string.format("无法识别参数 '%s'", part)
-                        end
-                    end
-                elseif #extra > 1 then
-                    return false, "配置参数过多!"
-                end
-                sitstauts = false
-                humanoid.Sit = false
-                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
-                    return true, "角色已站起 (强制模式)"
-                else
-                    return true, "角色已站起"
-                end
-                return false, "未知错误"
+        if #extra > 1 then return false, "配置参数过多!" end
+        local isforce = false
+        for _, flag in ipairs(extra) do
+            if flag == "force" or flag == "-f" then
+                isforce = true
             else
-                return false, string.format("无法识别参数 '%s'", args[1])
+                return false, string.format("无法识别配置 '%s'，允许值: force/-f", flag)
             end
         end
-        return false, "未知错误"
+
+        humanoid.Sit = targetstate
+
+        if isforce then
+            table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+                if humanoid.Sit ~= targetstate then
+                    humanoid.Sit = targetstate
+                end
+            end))
+
+            for _, conn in ipairs(sitconnections) do
+                if conn and conn.Connected then table.insert(connections, conn) end
+            end
+        end
+
+        local modestr = isforce and " (强制模式)" or ""
+        return true, (targetstate and "角色已坐下" or "角色已站起") .. modestr
     end
 })
 
-local freezestauts, freezeconnections = nil, {}
+local freezeconnections = {}
 
 local function FreezeCharacter(character, status)
+    if not character then return end
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Anchored = status
@@ -1736,113 +1661,70 @@ RegisterCommand("freeze", {
     enabled 或 on - 启用冻结功能
     disabled 或 off - 禁用冻结功能
     
-    
     关于配置: 
     <模式> - 可选配置, 冻结模式, 可选值如下:
-    force 或 -f - 强制模式 (如果受到别的脚本干预导致角色被冻结或被解冻, 将自动重新冻结或解冻角色)
+    force 或 -f - 强制模式 (抵抗其他脚本或游戏机制的干预)
     
     使用实例:
     ;freeze on [-f] - 启用冻结功能, 并开启强制模式]],
     handler = function(args, _, extra)
-        local rootpart, character = Localroot(), Localchar()
+        local character, rootpart = Localchar(), Localroot()
+        if not character or not rootpart then return false, "无法获取角色或 HumanoidRootPart" end
+            
+        for i = #freezeconnections, 1, -1 do
+            local conn = freezeconnections[i]
+            if conn and conn.Connected then conn:Disconnect() end
+            freezeconnections[i] = nil
+        end
 
-        freezestauts = rootpart and rootpart.Anchored
-        for _, connection in ipairs(freezeconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
+        local isfreezed = false
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Anchored then
+                isfreezed = true
+                break
             end
         end
-        if not rootpart then
-            return false, "无法获取 HumanoidRootPart"
-        elseif #args == 0 then
-            if #extra > 0 then
-                if extra[1] == "force" or extra[1] == "-f" then
-                    table.insert(freezeconnections, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
-                        if rootpart.Anchored ~= freezestauts then   
-                            rootpart.Anchored = freezestauts
-                        end
-                    end))
+        FreezeCharacter(character, not isfreezed)
 
-                    for _, connection in ipairs(freezeconnections) do
-                        table.insert(connections, connection)
-                    end
-                else
-                    return false, string.format("无法识别参数 '%s'", extra[1])
-                end
-            end
-            FreezeCharacter(character, not freezestauts)
-            freezestauts = not freezestauts
-            if freezestauts then    
-                return true, "角色已冻结"
+        local statestr, targetstate = args[1], nil
+        if statestr then
+            if statestr == "enabled" or statestr == "on" then
+                targetstate = true
+            elseif statestr == "disabled" or statestr == "off" then
+                targetstate = false
             else
-                return true, "角色已解冻"
+                return false, string.format("无法识别状态 '%s'，允许值: enabled/on, disabled/off", statestr)
             end
-            return true, freezestauts and "角色已冻结" or "角色已解冻"
-        elseif args[2] then
-            return false, "参数过多!"
         else
-            if args[1] == "enabled" or args[1] == "on" then
-                if #extra > 0 then
-                    for _, part in ipairs(extra) do
-                        if extra[1] == "force" or extra[1] == "-f" then
-                            table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
-                                if part.Anchored ~= true then
-                                    part.Anchored = true
-                                end
-                            end))
-                            
-                            for _, connection in ipairs(freezeconnections) do
-                                table.insert(connections, connection)
-                            end
-                            return true, "角色已冻结 (强制模式)"
-                        else
-                            return false, string.format("无法识别参数 '%s'", part)
-                        end
-                    end
-                elseif #extra > 1 then
-                    return false, "配置参数过多!"
-                end
-                freezestauts = true
-                FreezeCharacter(character, true)
-                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
-                    return true, "角色已冻结 (强制模式)"
-                else
-                    return true, "角色已冻结"
-                end
-                return false, "未知错误"
-            elseif args[1] == "disabled" or args[1] == "off" then
-                if #extra > 0 then
-                    for _, part in ipairs(extra) do
-                        if extra[1] == "force" or extra[1] == "-f" then
-                            table.insert(freezeconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
-                                if part.Anchored ~= false then
-                                    part.Anchored = false
-                                end
-                            end))
+            targetstate = not isfreezed
+        end
 
-                            for _, connection in ipairs(freezeconnections) do
-                                table.insert(connections, connection)
-                            end
-                        else
-                            return false, string.format("无法识别参数 '%s'", part)
-                        end
-                    end
-                elseif #extra > 1 then
-                    return false, "配置参数过多!"
-                end
-                freezestauts = false
-                FreezeCharacter(character, false)
-                if #extra > 0 and (extra[1] == "force" or extra[1] == "-f") then
-                    return true, "角色已解冻 (强制模式)"
-                else
-                    return true, "角色已解冻"
-                end
-                return false, "未知错误"
+        if #extra > 1 then return false, "配置参数过多!" end
+        local isforce = false
+        for _, flag in ipairs(extra) do
+            if flag == "force" or flag == "-f" then
+                isforce = true
             else
-                return false, string.format("无法识别参数 '%s'", args[1])
+                return false, string.format("无法识别配置 '%s'，允许值: force/-f", flag)
             end
         end
-        return false, "未知错误"
+
+        FreezeCharacter(character, targetstate)
+
+        if isforce then
+            table.insert(freezeconnections, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
+                if rootpart.Anchored ~= targetstate then
+                    FreezeCharacter(character, targetstate)
+                end
+            end))
+
+            for _, conn in ipairs(freezeconnections) do
+                if conn and conn.Connected then table.insert(connections, conn) end
+            end
+        end
+
+        local modestr = isforce and " (强制模式)" or ""
+        return true, (targetstate and "角色已冻结" or "角色已解冻") .. modestr
     end
 })
 
@@ -1867,10 +1749,12 @@ RegisterCommand("print", {
         if #args == 0 then
             return false, "参数不足"
         end
+
         local message = raw:match('"([^"]*)"')
         if not message or message == "" then
             return false, "请使用双引号包裹文本，例如 ;print \"Hello World\""
         end
+
         if #extra > 0 then
             local longmatched, shortmatched, messagetype = false, false, nil
             for _, part in ipairs(extra) do
@@ -1942,10 +1826,10 @@ RegisterCommand("walkspeed", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
 
-        for _, connection in ipairs(walkspeedconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
+        for i = #walkspeedconnections, 1, -1 do
+            local conn = walkspeedconnections[i]
+            if conn and conn.Connected then conn:Disconnect() end
+            walkspeedconnections[i] = nil
         end
 
         local mode = (args[1] or "")
@@ -2027,10 +1911,10 @@ RegisterCommand("jumppower", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
 
-        for _, connection in ipairs(jumppowerconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
+        for i = #jumppowerconnections, 1, -1 do
+            local conn = jumppowerconnections[i]
+            if conn and conn.Connected then conn:Disconnect() end
+            jumppowerconnections[i] = nil
         end
 
         local mode = (args[1] or "")
@@ -2112,10 +1996,10 @@ RegisterCommand("jumpheight", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
 
-        for _, connection in ipairs(jumpheightconnections) do
-            if connection and connection.Connected then
-                connection:Disconnect()
-            end
+        for i = #jumpheightconnections, 1, -1 do
+            local conn = jumpheightconnections[i]
+            if conn and conn.Connected then conn:Disconnect() end
+            jumpheightconnections[i] = nil
         end
 
         local mode = (args[1] or "")
@@ -2309,10 +2193,12 @@ local function StopFlight()
         return false, "无法获取 HumanoidRootPart"
     end
 
-    for _, connection in ipairs(flightconnections) do
-        if connection and connection.Connected then
-            connection:Disconnect()
+    for i = #flightconnections, 1, -1 do
+        local conn = flightconnections[i]
+        if conn and conn.Connected then
+            conn:Disconnect()
         end
+        flightconnections[i] = nil
     end
 
     local LinearVelocity, Attachment, PlatformPart = rootpart:FindFirstChild("LinearVelocity_Flight"), rootpart:FindFirstChild("Attachment_Flight"), rootpart:FindFirstChild("PlatformPart_Flight")
@@ -2690,7 +2576,7 @@ RegisterCommand("help", {
 })
 
 table.insert(connections, RunService.Heartbeat:Connect(function()
-    if guistatus ~= "active" or not MainFrame.Visible then return end
+    if guistatus ~= "active" or not MainFrame.Visible or not TextLabel_PreformenceInfo then return end
 
     local fpstext, fpscolor = "--", COLOR_TEXT_NORMAL
     local success, fpsvalue = pcall(function()
@@ -2761,10 +2647,8 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
     if Localcam and Localcam.Focus then
         local pos = Localcam.Focus.Position
         postext = string.format("(X:%.1f Y:%.1f Z:%.1f)", pos.X, pos.Y, pos.Z)
-        poscolor = COLOR_TEXT_NORMAL
     else 
         postext = "(X:? Y:? Z:?)"
-        poscolor = COLOR_TEXT_NORMAL
     end
 
     local richtext = string.format(
@@ -2775,7 +2659,7 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
         math.floor(memorycolor.R * 255), math.floor(memorycolor.G * 255), math.floor(memorycolor.B * 255), memorytext,
         math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
     )
-    Text_Info.Text = richtext
+    TextLabel_PreformenceInfo.Text = richtext
 end))
 
 table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function() 
@@ -2791,7 +2675,7 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
     if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
     if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
     if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
-    if not Scroll_ConsoleOutput or guistatus ~= "active" then return end
+    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
     if not message then return "" end
     
     local logtype = "out"
@@ -2824,15 +2708,15 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
         contentcolor = COLOR_TEXT_BLUE
     elseif logtype == "error" then
         typelabel = "ERROR"
-        timestampcolor = "#FF6464"
+        timestampcolor = "#C3574A"
         contentcolor = COLOR_TEXT_RED
     elseif logtype == "warning" then
         typelabel = "WARN"
-        timestampcolor = "#FFFF64"
+        timestampcolor = "#FFDA44"
         contentcolor = COLOR_TEXT_YELLOW
     end
 
-    local children, labelcount, r, g, b, logprefix = Scroll_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
+    local children, labelcount, r, g, b, logprefix = ScrollingFrame_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
     local colorhex = string.format("%02X%02X%02X", r, g, b)
     local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, colorhex, escapedtext)
 
@@ -2849,7 +2733,7 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
     TextLabel.AutomaticSize = Enum.AutomaticSize.Y
     TextLabel.Size = UDim2.new(1, -10, 0, 15)
     TextLabel.ZIndex = 13
-    TextLabel.Parent = Scroll_ConsoleOutput
+    TextLabel.Parent = ScrollingFrame_ConsoleOutput
     TextLabel:SetAttribute("MessageType", typelabel)
 
     for _, child in pairs(children) do
@@ -2864,7 +2748,7 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
         end
     end
     if Config.Console.autoscroll then
-        Scroll_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
+        ScrollingFrame_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
     end
 end))
 
