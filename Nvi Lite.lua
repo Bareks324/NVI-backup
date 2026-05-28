@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00088"
+VERSION_NUMBER = "00089"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -2552,7 +2552,7 @@ RegisterCommand("help", {
             log("========== 可用指令列表 ==========", "out")
             for cmdname, cmdinfo in pairs(commandlist) do
                 local usage = table.concat(cmdinfo.usage, " / ")
-                log(string.format("%s - %s - %s", cmdname, usage, cmdinfo.description), "out")
+                log(string.format("%s - %s - %s", cmdname, usage, string.match(cmdinfo.description, "^[^\n\r]+")), "out")
             end
             log("==================================", "out")
             return true, "已显示所有指令"
