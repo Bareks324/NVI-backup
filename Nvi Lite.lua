@@ -2804,11 +2804,13 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         log("查看上一条命令输入...", "out")
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
+        TextBox_ConsoleInput.CursorPosition = 999
     elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看下一条命令输入...", "out")
         commandhistoryindex += 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
         TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
+        TextBox_ConsoleInput.CursorPosition = 999
     elseif input.KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() then 
         DestroyNvi()
     elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistatus == "active" then
