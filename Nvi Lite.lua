@@ -390,7 +390,7 @@ local function DestroyNvi()
 end
 
 local function GetTextWidth(text, fontsize, font)
-    if not text or text == "" or guistatus ~= "active" then return end
+    if not text or text == "" or guistatus ~= "active" then return 0 end
     local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
     local size = TextService:GetTextSize(text, fontsize, font, Vector2.new(10000, 1000))
     return size.X
@@ -704,7 +704,7 @@ TextLabel_ConsoleInputTipLabel.TextSize = 14
 TextLabel_ConsoleInputTipLabel.Text = "提示"
 TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
 TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, 0, 0.91, 0)
-TextLabel_ConsoleInputTipLabel.Visible = false
+-- TextLabel_ConsoleInputTipLabel.Visible = false
 TextLabel_ConsoleInputTipLabel.ZIndex = ZINDEX_LABEL
 TextLabel_ConsoleInputTipLabel.Parent = Area_Console
 
@@ -969,28 +969,6 @@ table.insert(connections, TextButton_Back.MouseButton1Click:Connect(function()
         UpdateAreaStats() 
     end
 end))
-
-local function RefreshConsoleDisplay()
-    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
-    for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
-        if child:IsA("TextLabel") then
-            local messagetype = child:GetAttribute("MessageType") or "INFO"
-            if messagetype == "ERROR" then
-                child.Visible = Config.Console.showerror
-            elseif messagetype == "WARN" then
-                child.Visible = Config.Console.showwarn
-            elseif messagetype == "OUT" then
-                child.Visible = Config.Console.showoutput
-            elseif messagetype == "INFO" then
-                child.Visible = Config.Console.showinfo
-            else
-                log("未知的消息类型: " .. tostring(messagetype), "warn")
-            end
-        end
-    end
-end
-
-
 
 local function CreateModuleListButton(text, codename, order)
     if guistatus ~= "active" then return end
@@ -1466,6 +1444,11 @@ local function UpdateHintDisplay()
         end))
     end
 end
+
+table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
+    if guistatus ~= "active" then return end
+    TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, GetTextWidth(TextBox_ConsoleInput.Text, TextBox_ConsoleInput.TextSize, TextBox_ConsoleInput.Font) + 5, 0.91 , 0)
+end))
 
 RegisterCommand("leave", {
     aliases = {"quit", "exit"},
@@ -2662,13 +2645,25 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
     TextLabel_PreformenceInfo.Text = richtext
 end))
 
-table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function() 
-    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Status")), "out")
-    if Version:GetAttribute("Status") == "destroy" and not guistatus ~= "active" then 
-        log("收到销毁信号，正在销毁 GUI...", "out")
-        DestroyNvi() 
-    end 
-end))
+local function RefreshConsoleDisplay()
+    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
+    for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local messagetype = child:GetAttribute("MessageType") or "INFO"
+            if messagetype == "ERROR" then
+                child.Visible = Config.Console.showerror
+            elseif messagetype == "WARN" then
+                child.Visible = Config.Console.showwarn
+            elseif messagetype == "OUT" then
+                child.Visible = Config.Console.showoutput
+            elseif messagetype == "INFO" then
+                child.Visible = Config.Console.showinfo
+            else
+                log("未知的消息类型: " .. tostring(messagetype), "warn")
+            end
+        end
+    end
+end
 
 table.insert(connections, LogService.MessageOut:Connect(function(message, messagetype)
     if messagetype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
@@ -2769,14 +2764,6 @@ table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterp
     end
 end))
 
-table.insert(connections, TextBox_ConsoleInput.Focused:Connect(function()
-    if guistatus ~= "active" then return end
-    if TextBox_ConsoleInput.Text == "" then
-        TextBox_ConsoleInput.Text = ";"
-        TextBox_ConsoleInput.CursorPosition = 2
-    end
-end))
-
 table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if guistatus ~= "active" then return end
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
@@ -2800,6 +2787,10 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         log("按下分号键，正在聚焦命令输入框...", "out")
         RunService.RenderStepped:Wait()
         TextBox_ConsoleInput:CaptureFocus()
+        if TextBox_ConsoleInput.Text == "" then
+            TextBox_ConsoleInput.Text = ";"
+            TextBox_ConsoleInput.CursorPosition = 2
+        end
     elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
         log("查看上一条命令输入...", "out")
         commandhistoryindex -= 1
@@ -2850,6 +2841,14 @@ table.insert(connections, UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
+end))
+
+table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function() 
+    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Status")), "out")
+    if Version:GetAttribute("Status") == "destroy" and not guistatus ~= "active" then 
+        log("收到销毁信号，正在销毁 GUI...", "out")
+        DestroyNvi() 
+    end 
 end))
 
 log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.", "out")
