@@ -1,5 +1,5 @@
 print("\n\n\n")
-VERSION_NUMBER = "00089"
+VERSION_NUMBER = "00090"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -704,7 +704,7 @@ TextLabel_ConsoleInputTipLabel.TextSize = 14
 TextLabel_ConsoleInputTipLabel.Text = "提示"
 TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
 TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, 0, 0.91, 0)
--- TextLabel_ConsoleInputTipLabel.Visible = false
+TextLabel_ConsoleInputTipLabel.Visible = false
 TextLabel_ConsoleInputTipLabel.ZIndex = ZINDEX_LABEL
 TextLabel_ConsoleInputTipLabel.Parent = Area_Console
 
@@ -970,6 +970,108 @@ table.insert(connections, TextButton_Back.MouseButton1Click:Connect(function()
     end
 end))
 
+local function RefreshConsoleDisplay()
+    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
+    for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local messagetype = child:GetAttribute("MessageType") or "INFO"
+            if messagetype == "ERROR" then
+                child.Visible = Config.Console.showerror
+            elseif messagetype == "WARN" then
+                child.Visible = Config.Console.showwarn
+            elseif messagetype == "OUT" then
+                child.Visible = Config.Console.showoutput
+            elseif messagetype == "INFO" then
+                child.Visible = Config.Console.showinfo
+            else
+                log("未知的消息类型: " .. tostring(messagetype), "warn")
+            end
+        end
+    end
+end
+
+table.insert(connections, LogService.MessageOut:Connect(function(message, messagetype)
+    if messagetype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
+    if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
+    if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
+    if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
+    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
+    if not message then return "" end
+    
+    local logtype = "out"
+    if messagetype == Enum.MessageType.MessageOutput then
+        logtype = "out"
+    elseif messagetype == Enum.MessageType.MessageInfo then
+        logtype = "info"
+    elseif messagetype == Enum.MessageType.MessageError then
+        logtype = "error"
+    elseif messagetype == Enum.MessageType.MessageWarning then
+        logtype = "warning"
+    else 
+        logtype = "unknown"
+    end
+    
+    for _, keyword in ipairs(Config.Console.filterkeywords) do
+        if message:find(keyword, 1, true) then
+            return
+        end
+    end
+    local timestamp, escapedtext = os.date("%H:%M:%S"), message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    local typelabel, timestampcolor, contentcolor = "OUT", "#C8C8C8", COLOR_TEXT_NORMAL
+    if logtype == "out" then
+        typelabel = "OUT"
+        timestampcolor = "#C8C8C8"
+        contentcolor = COLOR_TEXT_NORMAL
+    elseif logtype == "info" then
+        typelabel = "INFO"
+        timestampcolor = "#00A2FF"
+        contentcolor = COLOR_TEXT_BLUE
+    elseif logtype == "error" then
+        typelabel = "ERROR"
+        timestampcolor = "#C3574A"
+        contentcolor = COLOR_TEXT_RED
+    elseif logtype == "warning" then
+        typelabel = "WARN"
+        timestampcolor = "#FFDA44"
+        contentcolor = COLOR_TEXT_YELLOW
+    end
+
+    local children, labelcount, r, g, b, logprefix = ScrollingFrame_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
+    local colorhex = string.format("%02X%02X%02X", r, g, b)
+    local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, colorhex, escapedtext)
+
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.RichText = true
+    TextLabel.Text = messagetext
+    TextLabel.TextSize = 14
+    TextLabel.Font = Enum.Font.Code
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TextLabel.TextYAlignment = Enum.TextYAlignment.Top
+    TextLabel.TextWrapped = true
+    TextLabel.ClipsDescendants = false
+    TextLabel.AutomaticSize = Enum.AutomaticSize.Y
+    TextLabel.Size = UDim2.new(1, -10, 0, 15)
+    TextLabel.ZIndex = 13
+    TextLabel.Parent = ScrollingFrame_ConsoleOutput
+    TextLabel:SetAttribute("MessageType", typelabel)
+
+    for _, child in pairs(children) do
+        if child:IsA("TextLabel") then
+            labelcount += 1
+        end
+    end
+    if labelcount > Config.Console.maxmessages then
+        local oldestlabel = children[1]
+        if oldestlabel and oldestlabel:IsA("TextLabel") then
+            oldestlabel:Destroy()
+        end
+    end
+    if Config.Console.autoscroll then
+        ScrollingFrame_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
+    end
+end))
+
 local function CreateModuleListButton(text, codename, order)
     if guistatus ~= "active" then return end
 
@@ -1080,7 +1182,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
     ButtonContainer.BackgroundTransparency = 1
     ButtonContainer.LayoutOrder = order
     ButtonContainer.ZIndex = ZINDEX_AREA
-    ButtonContainer.Parent = Area_ConsoleSettings
+    ButtonContainer.Parent = Area_ConsoleOutputSettings
 
     local ButtonTextLabel = Instance.new("TextLabel")
     ButtonTextLabel.Name = "TextLabel_ButtonText" .. codename
@@ -1120,7 +1222,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
         ButtonCore.Position = UDim2.new(0.5, 0, 0.5, 0)
         ButtonCore.BackgroundTransparency = 1
     end
-    ButtonCore.ZIndex = 21
+    ButtonCore.ZIndex = 31
     ButtonCore.Parent = ButtonCoreFrame
 
     local buttonstauts = defaultstauts
@@ -1310,8 +1412,16 @@ local function RegisterCommand(name: string, config: {
     return true
 end
 
-local function FindCommandMatches()
+local hintpressed = false
+
+local function UpdateCommandHintDisplay()
     if guistatus ~= "active" then return end
+
+    for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
 
     local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
     local spacepos = inputtext:find(" ")
@@ -1341,21 +1451,6 @@ local function FindCommandMatches()
     table.sort(matches, function(a, b)
         return a.completename < b.completename
     end)
-    return matches
-end
-
-local hintpressed = false
-
-local function UpdateHintDisplay()
-    if guistatus ~= "active" then return end
-
-    for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
-        if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
-            child:Destroy()
-        end
-    end
-
-    local matches = FindCommandMatches()
 
     log("=== 匹配结果 ===", "out")
     log("匹配数量:" .. tostring(#matches), "out")
@@ -1445,9 +1540,77 @@ local function UpdateHintDisplay()
     end
 end
 
+local function GetNextParamHint(rawinput)
+    if not rawinput or rawinput:match("^%s*$") or guistatus ~= "active" then return "" end
+
+    local cmdname = rawinput:match("^%s*;?%s*(%S+)")
+    if not cmdname then return "" end
+
+    local mainname = commandmap[cmdname]
+    local cmdinfo = mainname and commandlist[mainname]
+    if not cmdinfo or not cmdinfo.usage or #cmdinfo.usage == 0 then return "" end
+
+    local usageStr = cmdinfo.usage[1]
+    
+    local argstyped = 0
+    for _ in rawinput:gmatch("%S+") do
+        argstyped += 1
+    end
+    argstyped -= 1
+    if argstyped < 0 then argstyped = 0 end
+
+    local placeholders = {}
+    for p in usageStr:gmatch("([%{%<%[][^}%>%]]+[%}%>%]])") do
+        table.insert(placeholders, p)
+    end
+
+    if argstyped < #placeholders then
+        return placeholders[argstyped + 1]
+    end
+    
+    return nil
+end
+
 table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if guistatus ~= "active" then return end
+
     TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, GetTextWidth(TextBox_ConsoleInput.Text, TextBox_ConsoleInput.TextSize, TextBox_ConsoleInput.Font) + 5, 0.91 , 0)
+    local nexthint = GetNextParamHint(TextBox_ConsoleInput.Text)
+    if nexthint and nexthint ~= "" and TextBox_ConsoleInput.Text:sub(-1) == " " then
+        TextLabel_ConsoleInputTipLabel.Text = nexthint
+        TextLabel_ConsoleInputTipLabel.Visible = true
+    else
+        TextLabel_ConsoleInputTipLabel.Text = ""
+        TextLabel_ConsoleInputTipLabel.Visible = false
+    end
+end))
+
+table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
+    if guistatus ~= "active" or not MainFrame.Visible or not enterpressed then return end
+    local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
+    if text:find("^;") then
+        ExecuteCommand(text)
+        TextBox_ConsoleInput.Text = ""
+    elseif text == "" then 
+        TextBox_ConsoleInput.Text = ""
+        log("输入了空内容", "out") 
+        return 
+    else
+        loadstring(TextBox_ConsoleInput.Text)()
+        TextBox_ConsoleInput.Text = ""
+        log("控制台输入：" .. text, "out")
+    end
+end))
+
+table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
+    if guistatus ~= "active" then return end
+    if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
+        UpdateCommandHintDisplay()
+    else
+        if Area_ConsoleInputHint.Visible then 
+            Area_ConsoleInputHint.Visible = false
+        end
+    end
 end))
 
 RegisterCommand("leave", {
@@ -2643,136 +2806,6 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
         math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
     )
     TextLabel_PreformenceInfo.Text = richtext
-end))
-
-local function RefreshConsoleDisplay()
-    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
-    for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
-        if child:IsA("TextLabel") then
-            local messagetype = child:GetAttribute("MessageType") or "INFO"
-            if messagetype == "ERROR" then
-                child.Visible = Config.Console.showerror
-            elseif messagetype == "WARN" then
-                child.Visible = Config.Console.showwarn
-            elseif messagetype == "OUT" then
-                child.Visible = Config.Console.showoutput
-            elseif messagetype == "INFO" then
-                child.Visible = Config.Console.showinfo
-            else
-                log("未知的消息类型: " .. tostring(messagetype), "warn")
-            end
-        end
-    end
-end
-
-table.insert(connections, LogService.MessageOut:Connect(function(message, messagetype)
-    if messagetype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
-    if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
-    if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
-    if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
-    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
-    if not message then return "" end
-    
-    local logtype = "out"
-    if messagetype == Enum.MessageType.MessageOutput then
-        logtype = "out"
-    elseif messagetype == Enum.MessageType.MessageInfo then
-        logtype = "info"
-    elseif messagetype == Enum.MessageType.MessageError then
-        logtype = "error"
-    elseif messagetype == Enum.MessageType.MessageWarning then
-        logtype = "warning"
-    else 
-        logtype = "unknown"
-    end
-    
-    for _, keyword in ipairs(Config.Console.filterkeywords) do
-        if message:find(keyword, 1, true) then
-            return
-        end
-    end
-    local timestamp, escapedtext = os.date("%H:%M:%S"), message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-    local typelabel, timestampcolor, contentcolor = "OUT", "#C8C8C8", COLOR_TEXT_NORMAL
-    if logtype == "out" then
-        typelabel = "OUT"
-        timestampcolor = "#C8C8C8"
-        contentcolor = COLOR_TEXT_NORMAL
-    elseif logtype == "info" then
-        typelabel = "INFO"
-        timestampcolor = "#00A2FF"
-        contentcolor = COLOR_TEXT_BLUE
-    elseif logtype == "error" then
-        typelabel = "ERROR"
-        timestampcolor = "#C3574A"
-        contentcolor = COLOR_TEXT_RED
-    elseif logtype == "warning" then
-        typelabel = "WARN"
-        timestampcolor = "#FFDA44"
-        contentcolor = COLOR_TEXT_YELLOW
-    end
-
-    local children, labelcount, r, g, b, logprefix = ScrollingFrame_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
-    local colorhex = string.format("%02X%02X%02X", r, g, b)
-    local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, colorhex, escapedtext)
-
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.RichText = true
-    TextLabel.Text = messagetext
-    TextLabel.TextSize = 14
-    TextLabel.Font = Enum.Font.Code
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TextLabel.TextYAlignment = Enum.TextYAlignment.Top
-    TextLabel.TextWrapped = true
-    TextLabel.ClipsDescendants = false
-    TextLabel.AutomaticSize = Enum.AutomaticSize.Y
-    TextLabel.Size = UDim2.new(1, -10, 0, 15)
-    TextLabel.ZIndex = 13
-    TextLabel.Parent = ScrollingFrame_ConsoleOutput
-    TextLabel:SetAttribute("MessageType", typelabel)
-
-    for _, child in pairs(children) do
-        if child:IsA("TextLabel") then
-            labelcount += 1
-        end
-    end
-    if labelcount > Config.Console.maxmessages then
-        local oldestlabel = children[1]
-        if oldestlabel and oldestlabel:IsA("TextLabel") then
-            oldestlabel:Destroy()
-        end
-    end
-    if Config.Console.autoscroll then
-        ScrollingFrame_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
-    end
-end))
-
-table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
-    if guistatus ~= "active" or not MainFrame.Visible or not enterpressed then return end
-    local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
-    if text:find("^;") then
-        ExecuteCommand(text)
-        TextBox_ConsoleInput.Text = ""
-    elseif text == "" then 
-        TextBox_ConsoleInput.Text = ""
-        log("输入了空内容", "out") 
-        return 
-    else
-        loadstring(TextBox_ConsoleInput.Text)()
-        TextBox_ConsoleInput.Text = ""
-        log("控制台输入：" .. text, "out")
-    end
-end))
-
-table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
-    if guistatus ~= "active" then return end
-    if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
-        UpdateHintDisplay()
-    else
-        if Area_ConsoleInputHint.Visible then 
-            Area_ConsoleInputHint.Visible = false
-        end
-    end
 end))
 
 local dragging, dragstartpos, framestartpos = false, nil, nil
