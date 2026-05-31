@@ -1,5 +1,5 @@
 print("-------------------------------")
-VERSION_NUMBER = "00092"
+VERSION_NUMBER = "00093"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1551,19 +1551,23 @@ local function GetNextParamHint(rawinput)
 
     local mainname = commandmap[cmdname]
     local cmdinfo = mainname and commandlist[mainname]
-    if not cmdinfo or not cmdinfo.usage or #cmdinfo.usage == 0 then return "" end
+    if not cmdinfo or not cmdinfo.usage then return "" end
 
-    local usagestr, argstyped = cmdinfo.usage[1], 0
+    local placeholders = {}
+    for _, token in ipairs(cmdinfo.usage) do
+        if type(token) == "string" and (token:match("{") or token:match("<")) then
+            table.insert(placeholders, token)
+        end
+    end
+
+    if #placeholders == 0 then return "" end
+
+    local argstyped = 0
     for _ in rawinput:gmatch("%S+") do
         argstyped += 1
     end
     argstyped -= 1
     if argstyped < 0 then argstyped = 0 end
-
-    local placeholders = {}
-    for p in usagestr:gmatch("([%{%<%[][^}%>%]]+[%}%>%]])") do
-        table.insert(placeholders, p)
-    end
 
     if argstyped < #placeholders then
         return placeholders[argstyped + 1]
@@ -1576,9 +1580,11 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
     if guistatus ~= "active" then return end
 
     TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, GetTextWidth(TextBox_ConsoleInput.Text, TextBox_ConsoleInput.TextSize, TextBox_ConsoleInput.Font) + 5, 0.91 , 0)
+    TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
     local nexthint = GetNextParamHint(TextBox_ConsoleInput.Text)
     if nexthint and nexthint ~= "" and TextBox_ConsoleInput.Text:sub(-1) == " " then
         TextLabel_ConsoleInputTipLabel.Text = nexthint
+        TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
         TextLabel_ConsoleInputTipLabel.Visible = true
     else
         TextLabel_ConsoleInputTipLabel.Text = ""
@@ -1586,10 +1592,17 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
     end
 end))
 
+table.insert(connections, TextBox_ConsoleInput.Focused:Connect(function()
+    if guistatus ~= "active" then return end
+
+    TextLabel_ConsoleInputTipLabel.Visible = true
+end))
+
 table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
     if guistatus ~= "active" or not MainFrame.Visible or not enterpressed then return end
 
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
+    TextLabel_ConsoleInputTipLabel.Visible = false
     if text:find("^;") then
         log("> " .. text, "out")
         ExecuteCommand(text)
@@ -1721,7 +1734,7 @@ local sitconnections = {}
 
 RegisterCommand("sit", {
     aliases = {},
-    usage = {";sit {状态} [<模式>]"},
+    usage = {";sit ", "{状态}", "[", "{模式}", "]"},
     description = [[让你的角色坐下或站起
 
     此操作将使你的角色坐下或站起
@@ -1732,7 +1745,7 @@ RegisterCommand("sit", {
     disabled 或 off - 关闭坐下功能
     
     关于配置: 
-    <模式> - 可选配置, 坐下模式, 可选值如下:
+    {模式} - 可选配置, 坐下模式, 可选值如下:
     force 或 -f - 强制模式 (抵抗其他脚本或游戏机制的干预)
     
     使用实例:
@@ -1802,7 +1815,7 @@ end
 
 RegisterCommand("freeze", {
     aliases = {},
-    usage = {";freeze {状态} [<模式>]"},
+    usage = {";freeze", "{状态}", "[", "{模式}", "]"},
     description = [[冻结你自己!
 
     此操作将冻结你的角色, 使其无法移动
@@ -1813,7 +1826,7 @@ RegisterCommand("freeze", {
     disabled 或 off - 禁用冻结功能
     
     关于配置: 
-    <模式> - 可选配置, 冻结模式, 可选值如下:
+    {模式} - 可选配置, 冻结模式, 可选值如下:
     force 或 -f - 强制模式 (抵抗其他脚本或游戏机制的干预)
     
     使用实例:
@@ -1881,7 +1894,7 @@ RegisterCommand("freeze", {
 
 RegisterCommand("print", {
     aliases = {"echo"},
-    usage = {";print <文本> [<文本类型>]"},
+    usage = {";print", "<文本>", "[", "{文本类型}", "]"},
     description = [[输出文本到控制台
 
      此操作将会将输入的参数输出到控制台, 使用 F9 打开控制台
@@ -1890,7 +1903,7 @@ RegisterCommand("print", {
     <文本> - 必要参数, 需要输出的文本, 必须使用双引号包裹，例如 ;print "Hello World"
     
     关于配置:
-    <文本类型> - 可选配置, 指定输出文本的类型，影响显示样式和是否受控制台设置影响
+    {文本类型} - 可选配置, 指定输出文本的类型，影响显示样式和是否受控制台设置影响
     messagetype == error / warn / out - 指定消息类型的长格式参数
     -e / -w / -o - 分别代表 error / warn / out 的短格式参数
     
@@ -1957,7 +1970,7 @@ local originalwalkspeed, walkspeedconnections = nil, {}
 
 RegisterCommand("walkspeed", {
     aliases = {"ws", "speed"},
-    usage = {";walkspeed <操作> <数值> [<模式>]"},
+    usage = {";walkspeed", "<操作>", "<数值>", "[", "{模式}", "]"},
     description = [[设置角色移动速度
     
     此操作将设置你角色的 WalkSpeed 属性, 影响角色的移动速度
@@ -1971,7 +1984,7 @@ RegisterCommand("walkspeed", {
     <数值> - 设置模式下的必要参数, 例如 50
     
     关于配置:
-    <模式> - 可选配置, 设置模式:
+    {模式} - 可选配置, 设置模式:
     force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改
     
     使用实例:
@@ -2042,7 +2055,7 @@ local originaljumppower, jumppowerconnections = nil, {}
 
 RegisterCommand("jumppower", {
     aliases = {"jp"},
-    usage = {";jumppower <操作> <数值> [<模式>]"},
+    usage = {";jumppower", "<操作>", "<数值>", "[", "{模式}", "]"},
     description = [[设置角色跳跃力
 
     此操作将设置你角色的 JumpPower 属性, 影响角色的基础跳跃高度
@@ -2056,7 +2069,7 @@ RegisterCommand("jumppower", {
     <数值> - 设置模式下的必要参数, 例如 50
 
     关于配置:
-    <模式> - 可选配置, 设置模式:
+    {模式} - 可选配置, 设置模式:
     force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改
     
     使用实例:
@@ -2127,7 +2140,7 @@ local originaljumpheight, jumpheightconnections = nil, {}
 
 RegisterCommand("jumpheight", {
     aliases = {"jh"},
-    usage = {";jumpheight <操作> <数值> [<模式>]"},
+    usage = {";jumpheight", "<操作>", "<数值>", "[", "{模式}", "]"},
     description = [[设置角色跳跃高度
 
     此操作将设置你角色的 JumpHeight 属性, 影响角色的物理跳跃高度
@@ -2141,7 +2154,7 @@ RegisterCommand("jumpheight", {
     <数值> - 设置模式下的必要参数, 例如 10
 
     关于配置:
-    <模式> - 可选配置, 设置模式:
+    {模式} - 可选配置, 设置模式:
     force / -f - 强制锁定模式, 抵抗其他脚本或游戏机制更改
     
     使用实例:
@@ -2249,7 +2262,7 @@ local l33tmap = {
 
 RegisterCommand("chat", {
     aliases = {"say"},
-    usage = {';chat <消息> [<频道>, <模式>]'},
+    usage = {";chat", "<消息>", "[", "{频道}", "{模式}", "]"},
     description = [[在聊天中输出内容
 
     此操作将会在聊天中输出指定的消息
@@ -2258,13 +2271,13 @@ RegisterCommand("chat", {
     <消息> - 必要参数, 需要发送的消息, 必须使用双引号包裹, 例如 ;chat "Hello World"
 
     关于配置:
-    <频道> - 可选配置, 指定发送消息的频道, 可选值如下:
+    {频道} - 可选配置, 指定发送消息的频道, 可选值如下:
     channel == general / system  - 指定频道的长格式参数
     -g / -s - 分别代表 general / system 的短格式参数
 
     如果输入别的长格式参数, 将尝试识别频道是否存在并发送消息到该频道, 但不保证成功, 请确保频道名称正确且存在
 
-    <模式> - 可选配置, 消息格式模式, 可选值如下:
+    {模式} - 可选配置, 消息格式模式, 可选值如下:
     format == l33t - 指定使用 l33t 模式的长格式参数
     -l - 使用 l33t 模式的短格式参数
     
@@ -2388,7 +2401,7 @@ end
 
 RegisterCommand("flight", {
     aliases = {"fly"},
-    usage = {";flight {模式}/{状态} {速度, 单位: Studs}"},
+    usage = {";flight", "{模式}/{状态}", "{速度, 单位: Studs}"},
     description = [[飞行!
 
     关于参数:
@@ -2534,7 +2547,7 @@ RegisterCommand("flight", {
             
             flightstauts = true
             return true, "飞行(速率飞行)已打开, 速度: " .. flyspeed
-        elseif move == "tpcframe" or move == "tc" then  
+        elseif move == "tpcframe" or move == "tc" or move == "tpc" then  
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
             table.insert(flightconnections, RunService.Heartbeat:Connect(function()
@@ -2688,15 +2701,65 @@ RegisterCommand("flight", {
     end
 })
 
+RegisterCommand("teleport", {
+    aliases = {"tp"},
+    usage = {";teleport", "<玩家名>/{x}", "{y}", "{z}"},
+    description = [[传送到目标位置
+
+    此操作将改变你的位置至目标处, 可以通过输入坐标或玩家名称来指定目标位置
+
+    关于参数:
+    <玩家名> - 必要参数, 如果不输入 x y z 坐标参数时, 此参数为必选且生效, 需提供一个玩家名或玩家名称的一部分来指定玩家
+
+    {x} - 可选参数, 此参数为目标位置的 x 坐标, 需要与 y z 坐标一起使用
+    
+    {y} - 可选参数, 此参数为目标位置的 y 坐标, 需要与 x z 坐标一起使用
+
+    {z} - 可选参数, 此参数为目标位置的 z 坐标, 需要与 x y 坐标一起使用
+
+    使用实例:
+    ;teleport John_Doe - 将你传送到名字中包含 "John_Doe" 的玩家位置
+    ;teleport 100 200 300 - 将你传送到坐标 (100, 200, 300)]],
+    handler = function(args, _, _)
+        local rootpart = Localroot()
+        if not rootpart then return false, "无法获取 HumanoidRootPart" end
+
+        if #args == 0 then return false, "参数过少, 请提供玩家名称或坐标参数" end
+        if #args > 3 then return false, "参数过多" end
+        if #args == 2 or (#args == 1 and tonumber(args[1])) then return false, "坐标参数需要同时提供 x y z 三个数值" end
+        if #args == 1 then
+            local targetname, targetplayer = args[1], nil
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Name:find(targetname) then
+                    targetplayer = player
+                    break
+                end
+            end
+
+            if not targetplayer then return false, "未找到匹配的玩家: " .. args[1] end
+            if not targetplayer.Character or not targetplayer.Character:FindFirstChild("HumanoidRootPart") then return false, "目标玩家的角色未加载或缺少 HumanoidRootPart" end
+
+            rootpart.CFrame = targetplayer.Character.HumanoidRootPart.CFrame
+            return true, "已传送到玩家 " .. targetplayer.Name .. " 的位置"
+        else
+            local x, y, z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+            if not x or not y or not z then return false, "坐标参数需要是数字" end
+
+            rootpart.CFrame = CFrame.new(x, y, z)
+            return true, string.format("已传送到坐标 (%.2f, %.2f, %.2f)", x, y, z)
+        end
+    end
+})
+
 RegisterCommand("help", {
     aliases = {"?"},
-    usage = {";help [指令名]"},
+    usage = {";help", "{指令名}"},
     description = [[显示所有指令或查看特定指令的详细信息
     
     此操作将显示所有可用指令的列表, 或者如果提供了指令名参数, 则显示该指令的详细信息
     
     关于参数:
-    <指令名> - 可选参数, 需要查看的指令名称或别名, 例如 ;help jumppower 或 ;help jp
+    {指令名} - 可选参数, 需要查看的指令名称或别名, 例如 ;help jumppower 或 ;help jp
     
     使用实例:
     ;help - 显示所有指令列表
