@@ -1,5 +1,5 @@
 print("-------------------------------")
-VERSION_NUMBER = "00091"
+VERSION_NUMBER = "00092"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -304,6 +304,7 @@ TextService = Services.TextService
 TextChatService = Services.TextChatService
 VoiceChatService = Services.VoiceChatService
 LogService = Services.LogService
+TestService = Services.TestService
 Stats = Services.Stats
 PlaceId = game.PlaceId
 JobId = game.JobId
@@ -1910,7 +1911,7 @@ RegisterCommand("print", {
         if #extra > 0 then
             local longmatched, shortmatched, messagetype = false, false, nil
             for _, part in ipairs(extra) do
-                local longmatch, shortmatch = part:match("^messagetype%s*==%s*(%w+)$"), part:match("^%-([ewo])$")
+                local longmatch, shortmatch = part:match("^messagetype%s*==%s*(%w+)$"), part:match("^%-([%w+])$")
 
                 if longmatch then 
                     longmatched = true 
@@ -1939,6 +1940,9 @@ RegisterCommand("print", {
                 elseif messagetype == "out" or messagetype == "o" then
                     print(message)                        
                     return true, "输出消息已发送 (配置指定)"
+                elseif messagetype == "info" or messagetype == "i" then
+                    TestService:Message(message)
+                    return true, "信息消息已发送"
                 else
                     return false, "无效的模式参数: " .. messagetype
                 end
