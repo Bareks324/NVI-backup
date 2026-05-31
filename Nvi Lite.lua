@@ -1,5 +1,5 @@
-print("\n\n\n")
-VERSION_NUMBER = "00090"
+print("-------------------------------")
+VERSION_NUMBER = "00091"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -1412,7 +1412,7 @@ local function RegisterCommand(name: string, config: {
     return true
 end
 
-local hintpressed = false
+local ishintpressed = false
 
 local function UpdateCommandHintDisplay()
     if guistatus ~= "active" then return end
@@ -1428,6 +1428,7 @@ local function UpdateCommandHintDisplay()
     if spacepos then
         inputtext = inputtext:sub(1, spacepos - 1)
     end
+
     for cmdname, cmdinfo in pairs(commandlist) do
         local matched, options = false, {cmdname}
         for _, alias in ipairs(cmdinfo.aliases or {}) do
@@ -1435,7 +1436,7 @@ local function UpdateCommandHintDisplay()
         end
 
         for _, commandname in pairs(options) do
-            if commandname:sub(1, #inputtext) == inputtext then
+            if #inputtext > 0 and #commandname > #inputtext and commandname:sub(1, #inputtext) == inputtext then
                 matched = true
                 break
             end
@@ -1448,22 +1449,25 @@ local function UpdateCommandHintDisplay()
             })
         end
     end
+
     table.sort(matches, function(a, b)
         return a.completename < b.completename
     end)
 
-    log("=== 匹配结果 ===", "out")
-    log("匹配数量:" .. tostring(#matches), "out")
-    for i, match in ipairs(matches) do
-        log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
+    if #matches > 0 then
+        log("------ 匹配结果 ------", "out")
+        log("匹配数量:" .. tostring(#matches), "out")
+        for i, match in ipairs(matches) do
+            log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
+        end
+        log("-------------------", "out")
     end
-    log("================", "out")
 
     if #matches == 0 then
         Area_ConsoleInputHint.Visible = false
         return
-    elseif hintpressed then
-        hintpressed = false
+    elseif ishintpressed then
+        ishintpressed = false
         Area_ConsoleInputHint.Visible = false
     elseif #matches > 0 then
         Area_ConsoleInputHint.Visible = true
@@ -1534,7 +1538,7 @@ local function UpdateCommandHintDisplay()
             else
                 TextBox_ConsoleInput.Text = ";" .. matches[i].completename
             end
-            hintpressed = true
+            ishintpressed = true
             TextBox_ConsoleInput:CaptureFocus() 
         end))
     end
@@ -1550,9 +1554,7 @@ local function GetNextParamHint(rawinput)
     local cmdinfo = mainname and commandlist[mainname]
     if not cmdinfo or not cmdinfo.usage or #cmdinfo.usage == 0 then return "" end
 
-    local usageStr = cmdinfo.usage[1]
-    
-    local argstyped = 0
+    local usagestr, argstyped = cmdinfo.usage[1], 0
     for _ in rawinput:gmatch("%S+") do
         argstyped += 1
     end
@@ -1560,7 +1562,7 @@ local function GetNextParamHint(rawinput)
     if argstyped < 0 then argstyped = 0 end
 
     local placeholders = {}
-    for p in usageStr:gmatch("([%{%<%[][^}%>%]]+[%}%>%]])") do
+    for p in usagestr:gmatch("([%{%<%[][^}%>%]]+[%}%>%]])") do
         table.insert(placeholders, p)
     end
 
@@ -1587,18 +1589,22 @@ end))
 
 table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
     if guistatus ~= "active" or not MainFrame.Visible or not enterpressed then return end
+
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
     if text:find("^;") then
+        log("> " .. text, "out")
         ExecuteCommand(text)
         TextBox_ConsoleInput.Text = ""
+        return 
     elseif text == "" then 
-        TextBox_ConsoleInput.Text = ""
         log("输入了空内容", "out") 
+        TextBox_ConsoleInput.Text = ""
         return 
     else
+        log("> " .. text, "out")
         loadstring(TextBox_ConsoleInput.Text)()
         TextBox_ConsoleInput.Text = ""
-        log("控制台输入：" .. text, "out")
+        return 
     end
 end))
 
@@ -2264,8 +2270,10 @@ RegisterCommand("chat", {
     ;chat "Hello World" channel == general format == l33t - 在 RBXGeneral 频道以 l33t 模式发送消息 "Hello World"]],
     handler = function(args, raw, extra)
         local message = raw:match('"([^"]*)"')
-        if not message or message == "" then 
+        if not message then 
             return false, "请使用双引号包裹文本，例如 ;chat \"Hello World\"" 
+        elseif message == "" then
+            return false, "文本不可为空!"
         end
 
         local targetchannel, usel33t = "RBXGeneral", false
@@ -2695,12 +2703,12 @@ RegisterCommand("help", {
     handler = function(args, _, _)
         if #args == 0 then
             log("命令格式: <>内为必填项 {}内为选填项 []内为配置项", "out")
-            log("========== 可用指令列表 ==========", "out")
+            log("---------- 可用指令列表 ----------", "out")
             for cmdname, cmdinfo in pairs(commandlist) do
                 local usage = table.concat(cmdinfo.usage, " / ")
                 log(string.format("%s - %s - %s", cmdname, usage, string.match(cmdinfo.description, "^[^\n\r]+")), "out")
             end
-            log("==================================", "out")
+            log("------------------------------", "out")
             return true, "已显示所有指令"
         else
             local targetcmd = args[1]:lower()
@@ -2709,12 +2717,12 @@ RegisterCommand("help", {
                 return false, "未知指令：" .. targetcmd
             end
             local cmd = commandlist[mainname]
-            log("========== 指令详情 ==========", "out")
+            log("------------ 指令详情 ------------", "out")
             log(string.format("指令名：%s", cmd.main), "out")
             log(string.format("别名：%s", table.concat(cmd.aliases, ", ")), "out")
             log(string.format("用法：%s", table.concat(cmd.usage, " / ")), "out")
             log(string.format("描述：%s", cmd.description), "out")
-            log("==============================", "out")
+            log("-------------------------------", "out")
             return true, "已显示指令详情"
         end
         return false, "未知错误"
@@ -2884,5 +2892,6 @@ table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(fu
     end 
 end))
 
+print("-------------------------------")
 log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.", "out")
 ScreenGui.Destroying:Connect(DestroyNvi)
