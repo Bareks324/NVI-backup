@@ -37,18 +37,21 @@ local Config = {
 
 guistatus, dragstauts, connections = "active", true, {}
 
-local function log(text, messagetype)
+local function log(text, mesgtype)
     if not Config.Console or not Config.Console.debuglogs or guistatus ~= "active" then return end
-    if messagetype == "out" and not Config.Console.showoutput then return end
-    if messagetype == "warn" and not Config.Console.showwarn then return end
-    if messagetype == "error" and not Config.Console.showerror then return end
+    if mesgtype == "out" and not Config.Console.showoutput then return end
+    if mesgtype == "warn" and not Config.Console.showwarn then return end
+    if mesgtype == "error" and not Config.Console.showerror then return end
+    if mesgtype == "info" and not Config.Console.showinfo then return end
     
-    if messagetype == "error" then 
+    if mesgtype == "error" then 
         error("[NVI] " .. text)
-    elseif messagetype == "warn" then
+    elseif mesgtype == "warn" then
         warn("[NVI]", text)
-    elseif messagetype == "out" then
+    elseif mesgtype == "out" then
         print("[NVI]", text)
+    elseif mesgtype == "info" then
+        TestService:Message(text)
     else 
         warn("[NVI]", "此消息属于未知频道!", text)
     end
@@ -118,10 +121,7 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
 
     timeout = timeout or 60
     basedelay = basedelay or 0.3
-    local value = nil
-    local connection_async = nil
-    local starttime = os.clock() 
-    local expired = false
+    local value, connection_async, starttime, expired = nil, nil, os.clock(), false
     
     task.spawn(function()
         while not expired do
@@ -334,43 +334,6 @@ Localroot = CreateAsyncValue("HumanoidRootPart", function()
     if not humanoid then return nil end
     return humanoid.RootPart
 end, 60, 0.1, true) 
-
-local NavigationHistory = Config.NavigationHistory
-
-function NavigationHistory:Push(entry)
-    if guistatus ~= "active" then return end
-
-    if self.nowindex < #self.history then
-        for i = #self.history, self.nowindex + 1, -1 do
-            table.remove(self.history, i)
-        end
-    end
-    if self.history[self.nowindex] == entry then return end
-    table.insert(self.history, entry)
-    self.nowindex = #self.history
-end
-
-function NavigationHistory:Back()
-    if guistatus ~= "active" then return end
-
-    if self.nowindex <= 1 then
-        log("没有更早的导航历史了", "warn")
-        return nil
-    end
-    self.nowindex -= 1
-    return self.history[self.nowindex]
-end
-
-function NavigationHistory:Enter()
-    if guistatus ~= "active" then return end
-
-    if self.nowindex >= #self.history then
-        log("没有更晚的导航历史了", "warn")
-        return nil
-    end
-    self.nowindex += 1
-    return self.history[self.nowindex]
-end
 
 local function DestroyNvi()
     if guistatus ~= "active" then return end
@@ -912,65 +875,6 @@ PlaceHolder_SettingList.LayoutOrder = 999
 PlaceHolder_SettingList.ZIndex = ZINDEX_AREA
 PlaceHolder_SettingList.Parent = Area_SettingList
 
-local showsettinglist, showmodulelist = nil, nil
-
-local function UpdateAreaStats()
-    if guistatus ~= "active" then return end
-
-    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
-    if showsettinglist ~= nil and
-        showsettinglist ~= "console" and
-        showsettinglist ~= "info" and
-        showsettinglist ~= "settings" then
-        log("无效的区域标识：" .. tostring(showsettinglist) .. "，已重置为 nil", "warn")
-        showsettinglist = nil
-    end
-    if showsettinglist == nil then
-        Area_Info.Visible = false
-        Area_Console.Visible = false
-        Area_Settings.Visible = false
-    elseif showsettinglist == "info" then
-        Area_Info.Visible = true
-        Area_Console.Visible = false
-        Area_Settings.Visible = false
-    elseif showsettinglist == "console" then
-        Area_Info.Visible = false
-        Area_Console.Visible = true
-        Area_Settings.Visible = false
-    elseif showsettinglist == "settings" then
-        Area_Info.Visible = false
-        Area_Console.Visible = false
-        Area_Settings.Visible = true
-    else
-        Area_Info.Visible = false
-        Area_Console.Visible = false
-        Area_Settings.Visible = false
-        showsettinglist = nil
-    end
-end
-
-showsettinglist = "console"
-NavigationHistory:Push("console")
-UpdateAreaStats()
-
-table.insert(connections, TextButton_Enter.MouseButton1Click:Connect(function()
-    if guistatus ~= "active" then return end
-    local entry = NavigationHistory:Enter()
-    if entry then
-        showsettinglist = entry
-        UpdateAreaStats() 
-    end
-end))
-
-table.insert(connections, TextButton_Back.MouseButton1Click:Connect(function()
-    if guistatus ~= "active" then return end
-    local back = NavigationHistory:Back()
-    if back then
-        showsettinglist = back
-        UpdateAreaStats() 
-    end
-end))
-
 local function RefreshConsoleDisplay()
     if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
     for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
@@ -1073,6 +977,100 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
     end
 end))
 
+function Config.NavigationHistory:Push(entry)
+    if guistatus ~= "active" then return end
+
+    if self.nowindex < #self.history then
+        for i = #self.history, self.nowindex + 1, -1 do
+            table.remove(self.history, i)
+        end
+    end
+    if self.history[self.nowindex] == entry then return end
+    table.insert(self.history, entry)
+    self.nowindex = #self.history
+end
+
+function Config.NavigationHistory:Back()
+    if guistatus ~= "active" then return end
+
+    if self.nowindex <= 1 then
+        log("没有更早的导航历史了", "warn")
+        return nil
+    end
+    self.nowindex -= 1
+    return self.history[self.nowindex]
+end
+
+function Config.NavigationHistory:Enter()
+    if guistatus ~= "active" then return end
+
+    if self.nowindex >= #self.history then
+        log("没有更晚的导航历史了", "warn")
+        return nil
+    end
+    self.nowindex += 1
+    return self.history[self.nowindex]
+end
+
+local showsettinglist, showmodulelist = nil, nil
+
+local function UpdateAreaStats()
+    if guistatus ~= "active" then return end
+
+    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
+    if showsettinglist ~= nil and
+        showsettinglist ~= "console" and
+        showsettinglist ~= "info" and
+        showsettinglist ~= "settings" then
+        log("无效的区域标识：" .. tostring(showsettinglist) .. "，已重置为 nil", "warn")
+        showsettinglist = nil
+    end
+    if showsettinglist == nil then
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+    elseif showsettinglist == "info" then
+        Area_Info.Visible = true
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+    elseif showsettinglist == "console" then
+        Area_Info.Visible = false
+        Area_Console.Visible = true
+        Area_Settings.Visible = false
+    elseif showsettinglist == "settings" then
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = true
+    else
+        Area_Info.Visible = false
+        Area_Console.Visible = false
+        Area_Settings.Visible = false
+        showsettinglist = nil
+    end
+end
+
+showsettinglist = "console"
+Config.NavigationHistory:Push("console")
+UpdateAreaStats()
+
+table.insert(connections, TextButton_Enter.MouseButton1Click:Connect(function()
+    if guistatus ~= "active" then return end
+    local entry = Config.NavigationHistory:Enter()
+    if entry then
+        showsettinglist = entry
+        UpdateAreaStats() 
+    end
+end))
+
+table.insert(connections, TextButton_Back.MouseButton1Click:Connect(function()
+    if guistatus ~= "active" then return end
+    local back = Config.NavigationHistory:Back()
+    if back then
+        showsettinglist = back
+        UpdateAreaStats() 
+    end
+end))
+
 local function CreateModuleListButton(text, codename, order)
     if guistatus ~= "active" then return end
 
@@ -1167,7 +1165,7 @@ local function CreateSettingListButton(text, codename, order)
         else
             showsettinglist = codename
         end
-        NavigationHistory:Push(showsettinglist) 
+        Config.NavigationHistory:Push(showsettinglist) 
         UpdateAreaStats()
     end))
 
