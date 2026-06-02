@@ -17,10 +17,10 @@ local function CleanUp()
 end
 
 local function ClearConnections()
-    for _, conn in pairs(connections) do
-        if conn and conn.Connected then
-            conn:Disconnect()
-        end
+    for i = #connections, 1, -1 do
+        local conn = connections[i]
+        if conn and conn.Connected then conn:Disconnect() end
+        connections[i] = nil
     end
     table.clear(connections)
 end
@@ -28,7 +28,7 @@ end
 local function UpdateDelay()
     local dataping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
     DEALY = dataping * PING_MULTIPLIER * 0.001
-    -- print("当前延迟：" .. dataping .. "ms, 碰撞箱延迟：" .. DEALY)
+    print("当前延迟：" .. dataping .. "ms, 碰撞箱延迟：" .. DEALY)
 end
 
 local function SetupCharacter(character)
@@ -49,7 +49,7 @@ local function SetupCharacter(character)
     sPart.Transparency = 1
     sPart.CanCollide = false
     sPart.Anchored = true
-    sPart.Parent = character
+    sPart.Parent = workspace
     serverpart = sPart
 
     local cPart = Instance.new("Part")
@@ -60,12 +60,12 @@ local function SetupCharacter(character)
     cPart.Transparency = 1
     cPart.CanCollide = false
     cPart.Anchored = true
-    cPart.Parent = character
+    cPart.Parent = workspace
     clientpart = cPart
 
     table.insert(connections, character.AncestryChanged:Connect(function()
         if not character:IsDescendantOf(game) then
-            ancestryConn:Disconnect()
+            ClearConnections()
             CleanUp()
         end
     end))
@@ -97,7 +97,7 @@ local function SetupCharacter(character)
         local beforedata = nil
         while #cframehistory > 1 do
             local oldest = cframehistory[1]
-            if oldest.time < currenttime - 1 then
+            if oldest.time < currenttime - 10 then
                 table.remove(cframehistory, 1)
             elseif oldest.time < targettime then
                 beforedata = table.remove(cframehistory, 1)
