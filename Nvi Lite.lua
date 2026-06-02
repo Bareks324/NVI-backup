@@ -1,5 +1,5 @@
 print("-------------------------------")
-VERSION_NUMBER = "00093"
+VERSION_NUMBER = "00094"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -35,7 +35,7 @@ local Config = {
     },
 }
 
-guistatus, dragstauts, connections = "active", true, {}
+local guistatus, candrag, connections = "active", true, {}
 
 local function log(text, mesgtype)
     if not Config.Console or not Config.Console.debuglogs or guistatus ~= "active" then return end
@@ -55,12 +55,6 @@ local function log(text, mesgtype)
     else 
         warn("[NVI]", "此消息属于未知频道!", text)
     end
-end
-
-local function Missing(expectedtype: string, value: any, fallback: any)
-    if guistatus ~= "active" then return end
-    return (type(value) == expectedtype and value) or 
-           (type(fallback) == expectedtype and fallback) or nil
 end
 
 local function CreateAPI(name: string, fallback: any, ...)
@@ -333,7 +327,7 @@ Localroot = CreateAsyncValue("HumanoidRootPart", function()
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid then return nil end
     return humanoid.RootPart
-end, 60, 0.1, true) 
+end, 60, 0.1, true)
 
 local function DestroyNvi()
     if guistatus ~= "active" then return end
@@ -454,16 +448,6 @@ Version:SetAttribute("Prefix", VERSION_PREFIX)
 Version:SetAttribute("Number", VERSION_NUMBER)
 Version:SetAttribute("Status", guistatus)
 
-local MouseTips = Instance.new("Frame")
-MouseTips.Name = "MouseTips"
-MouseTips.Size = UDim2.new(0, 100, 0, 30)
-MouseTips.Position = UDim2.new(0, 0, 0, 0)
-MouseTips.BackgroundColor3 = COLOR_GUI_BACKGROUND
-MouseTips.Visible = false
-MouseTips.Selectable = false
-MouseTips.ZIndex = 80
-MouseTips.Parent = MainFrame
-
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "GuiMainFrame"
 MainFrame.BackgroundColor3 = COLOR_GUI_BACKGROUND
@@ -483,6 +467,16 @@ UIStroke_MainFrame.Color = COLOR_GUI_BORDER
 UIStroke_MainFrame.Thickness = 3
 UIStroke_MainFrame.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 UIStroke_MainFrame.Parent = MainFrame
+
+local MouseTips = Instance.new("Frame")
+MouseTips.Name = "MouseTips"
+MouseTips.Size = UDim2.new(0, 100, 0, 30)
+MouseTips.Position = UDim2.new(0, 0, 0, 0)
+MouseTips.BackgroundColor3 = COLOR_GUI_BACKGROUND
+MouseTips.Visible = false
+MouseTips.Selectable = false
+MouseTips.ZIndex = 80
+MouseTips.Parent = MainFrame
 
 local Line_1 = Instance.new("Frame")
 Line_1.Name = "Line_1"
@@ -626,12 +620,12 @@ Area_ConsoleInput.Parent = Area_Console
 
 table.insert(connections, Area_ConsoleInput.MouseEnter:Connect(function()
     if guistatus ~= "active" then return end
-    dragstauts = false
+    candrag = false
 end))
 
 table.insert(connections, Area_ConsoleInput.MouseLeave:Connect(function()
     if guistatus ~= "active" then return end
-    dragstauts = true
+    candrag = true
 end))
 
 local TextBox_ConsoleInput = Instance.new("TextBox")
@@ -757,12 +751,12 @@ UIListLayout_Console.Parent = ScrollingFrame_ConsoleOutput
 
 table.insert(connections, ScrollingFrame_ConsoleOutput.MouseEnter:Connect(function()
     if guistatus ~= "active" then return end
-    dragstauts = false
+    candrag = false
 end))
 
 table.insert(connections, ScrollingFrame_ConsoleOutput.MouseLeave:Connect(function()
     if guistatus ~= "active" then return end
-    dragstauts = true
+    candrag = true
 end))
 
 local Area_Settings = Instance.new("Frame")
@@ -942,8 +936,7 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
     end
 
     local children, labelcount, r, g, b, logprefix = ScrollingFrame_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
-    local colorhex = string.format("%02X%02X%02X", r, g, b)
-    local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, colorhex, escapedtext)
+    local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, string.format("%02X%02X%02X", r, g, b), escapedtext)
 
     local TextLabel = Instance.new("TextLabel")
     TextLabel.RichText = true
@@ -1067,7 +1060,7 @@ table.insert(connections, TextButton_Back.MouseButton1Click:Connect(function()
     local back = Config.NavigationHistory:Back()
     if back then
         showsettinglist = back
-        UpdateAreaStats() 
+        UpdateAreaStats()
     end
 end))
 
@@ -1104,7 +1097,7 @@ local function CreateModuleListButton(text, codename, order)
         tween:Play()
         local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
         tween:Play()
-        dragstauts = false
+        candrag = false
     end))
 
     table.insert(connections, TextButton.MouseLeave:Connect(function()
@@ -1113,7 +1106,7 @@ local function CreateModuleListButton(text, codename, order)
         tween:Play()
         local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
         tween:Play()
-        dragstauts = true
+        candrag = true
     end))
 
     table.insert(connections, TextButton.MouseButton1Click:Connect(function()
@@ -1121,7 +1114,7 @@ local function CreateModuleListButton(text, codename, order)
         showmodulelist = codename
     end))
 
-    return TextButton
+    return nil
 end
 
 local function CreateSettingListButton(text, codename, order)
@@ -1148,14 +1141,14 @@ local function CreateSettingListButton(text, codename, order)
         if guistatus ~= "active" then return end
         local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
         tween:Play()
-        dragstauts = false
+        candrag = false
     end))
 
     table.insert(connections, TextButton.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
         local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
         tween:Play()
-        dragstauts = true
+        candrag = true
     end))
 
     table.insert(connections, TextButton.MouseButton1Click:Connect(function()
@@ -1169,7 +1162,7 @@ local function CreateSettingListButton(text, codename, order)
         UpdateAreaStats()
     end))
 
-    return TextButton
+    return nil
 end
 
 local function CreateConsoleSettingButton(text, codename, order, defaultstauts, effect)
@@ -1228,22 +1221,22 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
 
     table.insert(connections, ButtonContainer.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
-        dragstauts = false
+        candrag = false
     end))
 
     table.insert(connections, ButtonContainer.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
-        dragstauts = true
+        candrag = true
     end))
 
     table.insert(connections, ButtonCoreFrame.MouseEnter:Connect(function()
         if guistatus ~= "active" then return end
-        dragstauts = false
+        candrag = false
     end))
 
     table.insert(connections, ButtonCoreFrame.MouseLeave:Connect(function()
         if guistatus ~= "active" then return end
-        dragstauts = true
+        candrag = true
     end))
 
     table.insert(connections, ButtonCoreFrame.MouseButton1Click:Connect(function()
@@ -1422,8 +1415,7 @@ local function UpdateCommandHintDisplay()
         end
     end
 
-    local matches, inputtext = {}, TextBox_ConsoleInput.Text:sub(2)
-    local spacepos = inputtext:find(" ")
+    local matches, inputtext, spacepos = {}, TextBox_ConsoleInput.Text:sub(2), TextBox_ConsoleInput.Text:find(" ")
     if spacepos then
         inputtext = inputtext:sub(1, spacepos - 1)
     end
@@ -1483,7 +1475,6 @@ local function UpdateCommandHintDisplay()
 
         local match = matches[i]
         local cmdinfo = commandlist[match.completename]
-        local usage = cmdinfo and cmdinfo.usage and cmdinfo.usage[1] or "无使用方法"
 
         local HintButton = Instance.new("TextButton")
         HintButton.Font = Enum.Font.Code
@@ -1517,7 +1508,7 @@ local function UpdateCommandHintDisplay()
             tween:Play()
             local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
             tween:Play()
-            dragstauts = false
+            candrag = false
         end))
 
         table.insert(connections, HintButton.MouseLeave:Connect(function()
@@ -1526,7 +1517,7 @@ local function UpdateCommandHintDisplay()
             tween:Play()
             local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
             tween:Play()
-            dragstauts = true
+            candrag = true
         end))
 
         table.insert(connections, HintButton.MouseButton1Click:Connect(function()
@@ -1730,7 +1721,7 @@ RegisterCommand("suicide", {
     end
 })
 
-local sitconnections = {}
+local sitconn = {}
 
 RegisterCommand("sit", {
     aliases = {},
@@ -1754,10 +1745,10 @@ RegisterCommand("sit", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
             
-        for i = #sitconnections, 1, -1 do
-            local conn = sitconnections[i]
+        for i = #sitconn, 1, -1 do
+            local conn = sitconn[i]
             if conn and conn.Connected then conn:Disconnect() end
-            sitconnections[i] = nil
+            sitconn[i] = nil
         end
 
         local issitting, statestr, targetstate = humanoid.Sit, args[1], nil
@@ -1786,13 +1777,13 @@ RegisterCommand("sit", {
         humanoid.Sit = targetstate
 
         if isforce then
-            table.insert(sitconnections, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
+            table.insert(sitconn, humanoid:GetPropertyChangedSignal("Sit"):Connect(function()
                 if humanoid.Sit ~= targetstate then
                     humanoid.Sit = targetstate
                 end
             end))
 
-            for _, conn in ipairs(sitconnections) do
+            for _, conn in ipairs(sitconn) do
                 if conn and conn.Connected then table.insert(connections, conn) end
             end
         end
@@ -1802,7 +1793,7 @@ RegisterCommand("sit", {
     end
 })
 
-local freezeconnections = {}
+local freezeconn = {}
 
 local function FreezeCharacter(character, status)
     if not character then return end
@@ -1835,10 +1826,10 @@ RegisterCommand("freeze", {
         local character, rootpart = Localchar(), Localroot()
         if not character or not rootpart then return false, "无法获取角色或 HumanoidRootPart" end
             
-        for i = #freezeconnections, 1, -1 do
-            local conn = freezeconnections[i]
+        for i = #freezeconn, 1, -1 do
+            local conn = freezeconn[i]
             if conn and conn.Connected then conn:Disconnect() end
-            freezeconnections[i] = nil
+            freezeconn[i] = nil
         end
 
         local isfreezed = false
@@ -1876,13 +1867,13 @@ RegisterCommand("freeze", {
         FreezeCharacter(character, targetstate)
 
         if isforce then
-            table.insert(freezeconnections, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
+            table.insert(freezeconn, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
                 if rootpart.Anchored ~= targetstate then
                     FreezeCharacter(character, targetstate)
                 end
             end))
 
-            for _, conn in ipairs(freezeconnections) do
+            for _, conn in ipairs(freezeconn) do
                 if conn and conn.Connected then table.insert(connections, conn) end
             end
         end
@@ -1966,7 +1957,7 @@ RegisterCommand("print", {
     end
 })
 
-local originalwalkspeed, walkspeedconnections = nil, {}
+local originalwalkspeed, walkspeedconn = nil, {}
 
 RegisterCommand("walkspeed", {
     aliases = {"ws", "speed"},
@@ -1993,10 +1984,10 @@ RegisterCommand("walkspeed", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
 
-        for i = #walkspeedconnections, 1, -1 do
-            local conn = walkspeedconnections[i]
+        for i = #walkspeedconn, 1, -1 do
+            local conn = walkspeedconn[i]
             if conn and conn.Connected then conn:Disconnect() end
-            walkspeedconnections[i] = nil
+            walkspeedconn[i] = nil
         end
 
         local mode = (args[1] or "")
@@ -2030,12 +2021,12 @@ RegisterCommand("walkspeed", {
             elseif #extra == 1 then
                 local flag = extra[1]
                 if flag == "force" or flag == "-f" then
-                    table.insert(walkspeedconnections, humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                    table.insert(walkspeedconn, humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
                         if humanoid.WalkSpeed ~= value then
                             humanoid.WalkSpeed = value
                         end
                     end))
-                    for _, conn in ipairs(walkspeedconnections) do
+                    for _, conn in ipairs(walkspeedconn) do
                         if conn and conn.Connected then table.insert(connections, conn) end
                     end
                     return true, string.format("WalkSpeed 已强制锁定为 %d", value)
@@ -2051,7 +2042,7 @@ RegisterCommand("walkspeed", {
     end
 })
 
-local originaljumppower, jumppowerconnections = nil, {}
+local originaljumppower, jumppowerconn = nil, {}
 
 RegisterCommand("jumppower", {
     aliases = {"jp"},
@@ -2078,10 +2069,10 @@ RegisterCommand("jumppower", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
 
-        for i = #jumppowerconnections, 1, -1 do
-            local conn = jumppowerconnections[i]
+        for i = #jumppowerconn, 1, -1 do
+            local conn = jumppowerconn[i]
             if conn and conn.Connected then conn:Disconnect() end
-            jumppowerconnections[i] = nil
+            jumppowerconn[i] = nil
         end
 
         local mode = (args[1] or "")
@@ -2115,12 +2106,12 @@ RegisterCommand("jumppower", {
             elseif #extra == 1 then
                 local flag = extra[1]:lower()
                 if flag == "force" or flag == "-f" then
-                    table.insert(jumppowerconnections, humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+                    table.insert(jumppowerconn, humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
                         if humanoid.JumpPower ~= value then
                             humanoid.JumpPower = value
                         end
                     end))
-                    for _, conn in ipairs(jumppowerconnections) do
+                    for _, conn in ipairs(jumppowerconn) do
                         if conn and conn.Connected then table.insert(connections, conn) end
                     end
                     return true, string.format("JumpPower 已强制锁定为 %d", value)
@@ -2136,7 +2127,7 @@ RegisterCommand("jumppower", {
     end
 })
 
-local originaljumpheight, jumpheightconnections = nil, {}
+local originaljumpheight, jumpheightconn = nil, {}
 
 RegisterCommand("jumpheight", {
     aliases = {"jh"},
@@ -2163,10 +2154,10 @@ RegisterCommand("jumpheight", {
         local humanoid = Localhum()
         if not humanoid then return false, "无法获取 Humanoid" end
 
-        for i = #jumpheightconnections, 1, -1 do
-            local conn = jumpheightconnections[i]
+        for i = #jumpheightconn, 1, -1 do
+            local conn = jumpheightconn[i]
             if conn and conn.Connected then conn:Disconnect() end
-            jumpheightconnections[i] = nil
+            jumpheightconn[i] = nil
         end
 
         local mode = (args[1] or "")
@@ -2200,12 +2191,12 @@ RegisterCommand("jumpheight", {
             elseif #extra == 1 then
                 local flag = extra[1]:lower()
                 if flag == "force" or flag == "-f" then
-                    table.insert(jumpheightconnections, humanoid:GetPropertyChangedSignal("JumpHeight"):Connect(function()
+                    table.insert(jumpheightconn, humanoid:GetPropertyChangedSignal("JumpHeight"):Connect(function()
                         if humanoid.JumpHeight ~= value then
                             humanoid.JumpHeight = value
                         end
                     end))
-                    for _, conn in ipairs(jumpheightconnections) do
+                    for _, conn in ipairs(jumpheightconn) do
                         if conn and conn.Connected then table.insert(connections, conn) end
                     end
                     return true, string.format("JumpHeight 已强制锁定为 %.2f", value)
@@ -2232,7 +2223,7 @@ local l33tmap = {
     -- 中文形近/异体字映射
     ["大"] = "太", ["少"] = "尐", ["多"] = "夛",
     ["长"] = "镸", ["短"] = "矬", ["高"] = "髙",
-    ["快"] = "夬", ["慢"] = "漫", ["坏"] = "孬",
+    ["快"] = "夬", ["慢"] = "漫", ["地"] = "坔",
     ["日"] = "曰", ["月"] = "曰", ["目"] = "且",
     ["木"] = "朩", ["水"] = "氺", ["火"] = "灬",
     ["土"] = "士", ["工"] = "土", ["王"] = "玉",
@@ -2256,8 +2247,8 @@ local l33tmap = {
     ["软"] = "軟", ["件"] = "伔", ["硬"] = "哽",
     ["进"] = "進", ["来"] = "來", ["同"] = "冋",
     ["主"] = "玉", ["口"] = "囗", ["低"] = "氐",
-    ["好"] = "恏", ["坏"] = "壞", ["大"] = "夳",
-    ["小"] = "尐", ["地"] = "坔", ["世"] = "丗"
+    ["好"] = "恏", ["坏"] = "壞", ["世"] = "丗",
+    ["小"] = "尐"
 }
 
 RegisterCommand("chat", {
@@ -2285,11 +2276,11 @@ RegisterCommand("chat", {
     ;chat "Hello World" channel == general format == l33t - 在 RBXGeneral 频道以 l33t 模式发送消息 "Hello World"]],
     handler = function(args, raw, extra)
         local message = raw:match('"([^"]*)"')
-        if not message then 
-            return false, "请使用双引号包裹文本，例如 ;chat \"Hello World\"" 
-        elseif message == "" then
-            return false, "文本不可为空!"
-        end
+
+        if #args > 2 then return false, "参数过多!"
+        elseif #extra > 2 then return false, "配置过多!"
+        elseif not message then return false, "请使用双引号包裹文本，例如 ;chat \"Hello World\"" 
+        elseif message == "" then return false, "文本不可为空!" end
 
         local targetchannel, usel33t = "RBXGeneral", false
 
@@ -2348,7 +2339,7 @@ RegisterCommand("chat", {
     end
 })
 
-local flightstauts, flightconnections, lastrebuildtime, flightobjects = false, {}, 0, {
+local isfly, flyconn, lastrebuildtime, flightobjects = false, {}, 0, {
     LinearVelocity = nil,
     Attachment = nil,
     PlatformPart = nil,
@@ -2357,46 +2348,29 @@ local flightstauts, flightconnections, lastrebuildtime, flightobjects = false, {
 
 local function StopFlight() 
     local rootpart = Localroot()
-    
-    if not rootpart then
-        return false, "无法获取 HumanoidRootPart"
+
+    if not rootpart then return false, "无法获取 HumanoidRootPart" end
+
+    for i = #flyconn, 1, -1 do
+        local conn = flyconn[i]
+        if conn and conn.Connected then conn:Disconnect() end
+        flyconn[i] = nil
     end
 
-    for i = #flightconnections, 1, -1 do
-        local conn = flightconnections[i]
-        if conn and conn.Connected then
-            conn:Disconnect()
-        end
-        flightconnections[i] = nil
-    end
+    local velocity = rootpart:FindFirstChild("LinearVelocity_Flight")
+    local attachment = rootpart:FindFirstChild("Attachment_Flight")
+    local platform = rootpart:FindFirstChild("PlatformPart_Flight")
 
-    local LinearVelocity, Attachment, PlatformPart = rootpart:FindFirstChild("LinearVelocity_Flight"), rootpart:FindFirstChild("Attachment_Flight"), rootpart:FindFirstChild("PlatformPart_Flight")
+    if velocity then velocity:Destroy() end
+    if attachment then attachment:Destroy() end
+    if platform then platform:Destroy() end
+    if rootpart.Anchored then rootpart.Anchored = false end
 
-    if LinearVelocity then 
-        LinearVelocity:Destroy() 
-        log("已销毁飞行用 LinearVelocity", "out")
-    end
-    if Attachment then 
-        Attachment:Destroy()
-        log("已销毁飞行用 Attachment", "out")
-    end
-
-    if rootpart.Anchored then
-        rootpart.Anchored = false
-        log("已取消飞行用 Anchored", "out")
-    end
-
-    if PlatformPart then 
-        PlatformPart:Destroy() 
-        log("已销毁飞行用 PlatformPart", "out")
-    end
-
-    flightstauts, flightconnections, flightobjects = false, {}, {
-        LinearVelocity = nil,
-        Attachment = nil,
-        PlatformPart = nil,
-        floatvalue = -31
-    }
+    isfly = false
+    flightobjects.LinearVelocity = nil
+    flightobjects.Attachment = nil
+    flightobjects.PlatformPart = nil
+    flightobjects.floatvalue = -31
 end
 
 RegisterCommand("flight", {
@@ -2428,18 +2402,15 @@ RegisterCommand("flight", {
     ;flight velocity 50 - 启用速率飞行模式, 飞行速度为 50 Studs/s
     ;flight platform - 启用平台飞行模式
     ;flight off - 关闭飞行功能]],
-    handler = function(args, rawinput, _)
-        local rootpart, camera, humanoid, move, flyspeed = Localroot(), Localcam, Localhum(), args[1] or "normal", args[2] or 16
+    handler = function(args, _, _)
+        local rootpart, camera, humanoid = Localroot(), Localcam, Localhum()
 
-        if not rootpart then
-            return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
-        elseif #args > 2 then
-            return false, "参数过多"
-        elseif move ~= "normal" and move ~= "velocity" and move ~= "platform" and move ~= "tpcframe" and move ~= "v" and move ~= "n" and move ~= "v" and move ~= "p" and move ~= "tc" and move ~= "disabled" and move ~= "off" then
-            return false, "错误的参数! 飞行模式必须是 normal / velocity / tpcframe / platform 或 n / v / tc / p, 如需关闭飞行, 第一个参数为 disabled 或 off"
-        end
-
+        if not rootpart then return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
+        elseif #args > 2 then return false, "参数过多" end
+            
         StopFlight() 
+
+        local move, flyspeed = args[1] or "normal", args[2] or 16
 
         if move == "normal" or move == "velocity" or move == "n" or move == "v" then
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
@@ -2454,22 +2425,22 @@ RegisterCommand("flight", {
             flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
             flightobjects.LinearVelocity.Parent = rootpart
 
-            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+            table.insert(flyconn, RunService.Heartbeat:Connect(function()
                 if not rootpart then
-                    flightstauts = false
+                    isfly = false
                     StopFlight()
                     return false, "无法获取 HumanoidRootPart, 结束飞行 (速率飞行)"
                 end
                 
-                local lv, at = flightobjects.LinearVelocity, flightobjects.Attachment
+                local velocity, attachment = flightobjects.LinearVelocity, flightobjects.Attachment
                 
-                if not at and at.Parent then
+                if not attachment and attachment.Parent then
                     local nowtime = os.clock()
                     if nowtime - lastrebuildtime < 0.5 then return end
                     lastrebuildtime = nowtime
                     log("飞行组件丢失，正在重建...", "out")
                     
-                    if at and not at.Parent then at:Destroy() end
+                    if flightobjects.Attachment and not flightobjects.Attachment.Parent then flightobjects.Attachment:Destroy() end
 
                     flightobjects.Attachment = Instance.new("Attachment")
                     flightobjects.Attachment.Name = "Attachment_Flight"
@@ -2478,13 +2449,13 @@ RegisterCommand("flight", {
                     return 
                 end
 
-                if not lv and lv.Parent then
+                if not velocity and velocity.Parent then
                     local nowtime = os.clock()
                     if nowtime - lastrebuildtime < 0.5 then return end
                     lastrebuildtime = nowtime
                     log("飞行组件丢失，正在重建...", "out")
                     
-                    if lv and not lv.Parent then lv:Destroy() end
+                    if flightobjects.LinearVelocity and not flightobjects.LinearVelocity.Parent then flightobjects.LinearVelocity:Destroy() end
 
                     flightobjects.LinearVelocity = Instance.new("LinearVelocity")
                     flightobjects.LinearVelocity.Name = "LinearVelocity_Flight"
@@ -2504,16 +2475,16 @@ RegisterCommand("flight", {
                 if forward ~= 0 or strafe ~= 0 then movedirection = (look * forward + right * strafe).Unit end
 
                 if hasinput then
-                    local velocity = Vector3.new()
-                    if movedirection.Magnitude > 0 then velocity += movedirection.Unit * flyspeed * control.SpeedModifier end
-                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
-                    lv.VectorVelocity = velocity
+                    local newvelocity = Vector3.new()
+                    if movedirection.Magnitude > 0 then newvelocity += movedirection.Unit * flyspeed * control.SpeedModifier end
+                    newvelocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier, 0)
+                    velocity.VectorVelocity = newvelocity
                 else
-                    lv.VectorVelocity = Vector3.new(0, 0, 0)
+                    velocity.VectorVelocity = Vector3.new(0, 0, 0)
                 end
             end))
 
-            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+            table.insert(flyconn, UserInputService.InputBegan:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
@@ -2527,7 +2498,7 @@ RegisterCommand("flight", {
 				end
             end))
 
-            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+            table.insert(flyconn, UserInputService.InputEnded:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
@@ -2538,21 +2509,21 @@ RegisterCommand("flight", {
                 end
             end))
 
-            table.insert(flightconnections, humanoid.Died:Connect(function()
-                flightstauts = false
+            table.insert(flyconn, humanoid.Died:Connect(function()
+                isfly = false
                 StopFlight()
                 log("角色已死亡，结束飞行 (速率飞行)", "out")
             end))
-            for _, connection in ipairs(flightconnections) do table.insert(connections, connection) end
+            for _, connection in ipairs(flyconn) do table.insert(connections, connection) end
             
-            flightstauts = true
+            isfly = true
             return true, "飞行(速率飞行)已打开, 速度: " .. flyspeed
         elseif move == "tpcframe" or move == "tc" or move == "tpc" then  
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
-            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
+            table.insert(flyconn, RunService.Heartbeat:Connect(function(deltatime)
                 if not rootpart then
-                    flightstauts = false
+                    isfly = false
                     StopFlight()
                     return false, "无法获取 HumanoidRootPart, 结束飞行 (传送模式)"
                 end
@@ -2570,14 +2541,14 @@ RegisterCommand("flight", {
                 if forward ~= 0 or strafe ~= 0 then movedirection += look * forward + right * strafe end
 
                 if hasinput then
-                    local velocity = Vector3.new()
-                    if movedirection.Magnitude > 0 then velocity += movedirection.Unit * flyspeed * control.SpeedModifier * 0.03 end
-                    velocity += Vector3.new(0, vertical * flyspeed * control.SpeedModifier * 0.03, 0)
-                    rootpart.CFrame += velocity
+                    local newvelocity, speedscale = Vector3.new(), flyspeed * control.SpeedModifier * deltatime
+                    if movedirection.Magnitude > 0 then newvelocity += movedirection.Unit * speedscale end
+                    newvelocity += Vector3.new(0, vertical * speedscale, 0)
+                    rootpart.CFrame += newvelocity
                 end
             end))
 
-            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+            table.insert(flyconn, UserInputService.InputBegan:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 1
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = -1
@@ -2591,7 +2562,7 @@ RegisterCommand("flight", {
 				end
             end))
 
-            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+            table.insert(flyconn, UserInputService.InputEnded:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.W then control.Forward = 0
 				elseif input.KeyCode == Enum.KeyCode.S then control.Backward = 0
@@ -2602,24 +2573,24 @@ RegisterCommand("flight", {
                 end
             end))
 
-            table.insert(flightconnections, humanoid.Died:Connect(function()
-                flightstauts = false
+            table.insert(flyconn, humanoid.Died:Connect(function()
+                isfly = false
                 StopFlight()
                 log("角色已死亡，结束飞行 (传送模式)", "out")
             end))
 
-            table.insert(flightconnections, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
+            table.insert(flyconn, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
                 if not rootpart.Anchored then
                     rootpart.Anchored = true
                 end
             end))
 
-            for _, connection in ipairs(flightconnections) do
+            for _, connection in ipairs(flyconn) do
                 table.insert(connections, connection)
             end
 
             rootpart.Anchored = true
-            flightstauts = true
+            isfly = true
             return true, "飞行 (传送模式) 已打开, 速度: " .. flyspeed
         elseif move == "platform" or move == "p" then
             if args[2] then
@@ -2636,20 +2607,20 @@ RegisterCommand("flight", {
             flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue, 0)
             flightobjects.PlatformPart.Parent = rootpart
 
-            table.insert(flightconnections, RunService.Heartbeat:Connect(function()
-                if not rootpart then 
-                    return false, "无法获取 HumanoidRootPart, 结束飞行 (平台模式)"
-                end
+            table.insert(flyconn, RunService.Heartbeat:Connect(function()
+                if not rootpart then return false, "无法获取 HumanoidRootPart, 结束飞行 (平台模式)" end
                 
-                local pp = flightobjects.PlatformPart
+                local platform = flightobjects.PlatformPart
 
-                if not pp or not pp.Parent then
+                if not platform or not platform.Parent then
                     local nowtime = os.clock()
+
                     if nowtime - lastrebuildtime < 0.5 then return end
+
                     lastrebuildtime = nowtime
                     log("平台组件丢失，正在重建...", "out")
 
-                    if pp then pp:Destroy() end
+                    if platform then platform:Destroy() end
 
                     flightobjects.PlatformPart = Instance.new("Part")
                     flightobjects.PlatformPart.Name = "PlatformPart_Flight"
@@ -2660,44 +2631,46 @@ RegisterCommand("flight", {
                     flightobjects.PlatformPart.CastShadow = false
                     flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue, 0)
                     flightobjects.PlatformPart.Parent = rootpart
-                    return
+
+                    return nil
                 end
 
                 flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue / 10, 0)
             end))
 
-            table.insert(flightconnections, UserInputService.InputBegan:Connect(function(input)
+            table.insert(flyconn, UserInputService.InputBegan:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
 				if input.KeyCode == Enum.KeyCode.Space then flightobjects.floatvalue += 5
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then flightobjects.floatvalue -= 5
                 end
             end))
 
-            table.insert(flightconnections, UserInputService.InputEnded:Connect(function(input)
+            table.insert(flyconn, UserInputService.InputEnded:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
                 if input.KeyCode == Enum.KeyCode.Space then flightobjects.floatvalue -= 5
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then flightobjects.floatvalue += 5
                 end
             end))
 
-            table.insert(flightconnections, humanoid.Died:Connect(function()
-                flightstauts = false
+            table.insert(flyconn, humanoid.Died:Connect(function()
+                isfly = false
                 StopFlight()
                 log("角色已死亡，结束飞行 (平台模式)", "out")
             end))
 
-            for _, connection in ipairs(flightconnections) do
+            for _, connection in ipairs(flyconn) do
                 table.insert(connections, connection)
             end
 
-            flightstauts = true
+            isfly = true
             return true, "飞行 (平台模式) 已打开"
         elseif move == "disabled" or move == "off" then
-            flightstauts = false
+            isfly = false
             StopFlight()
             return true, "飞行已关闭"
+        else
+            return false, "错误的参数! 飞行模式必须是 normal / velocity / tpcframe / platform 或 n / v / tc / tpc / p, 如需关闭飞行, 第一个参数为 disabled 或 off"
         end
-        return false, "未知错误"
     end
 })
 
@@ -2790,7 +2763,6 @@ RegisterCommand("help", {
             log("-------------------------------", "out")
             return true, "已显示指令详情"
         end
-        return false, "未知错误"
     end
 })
 
@@ -2910,7 +2882,7 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
         TextBox_ConsoleInput.CursorPosition = 999
     elseif input.KeyCode == Enum.KeyCode.Delete and not UserInputService:GetFocusedTextBox() then 
         DestroyNvi()
-    elseif input.UserInputType == Enum.UserInputType.MouseButton1 and dragstauts and MainFrame.Visible and guistatus == "active" then
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 and candrag and MainFrame.Visible and guistatus == "active" then
         local mousepos, guipos, guisize = Vector2.new(input.Position.X, input.Position.Y), Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
         if mousepos.X >= guipos.X and mousepos.X <= guipos.X + guisize.X and
             mousepos.Y >= guipos.Y and mousepos.Y <= guipos.Y + guisize.Y then
@@ -2929,7 +2901,6 @@ table.insert(connections, UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         local mousepos = Vector2.new(input.Position.X, input.Position.Y)
         if MainFrame.Visible then
-            local guipos, guisize = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y), Vector2.new(MainFrame.AbsoluteSize.X, MainFrame.AbsoluteSize.Y)
             if dragging then
                 local newpos = Vector2.new(
                     math.clamp(framestartpos.X + (mousepos.X - dragstartpos.X), 0, Localcam.ViewportSize.X - MainFrame.AbsoluteSize.X),
@@ -2949,11 +2920,11 @@ table.insert(connections, UserInputService.InputEnded:Connect(function(input)
     end
 end))
 
-table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function() 
+table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function()
     log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Status")), "out")
-    if Version:GetAttribute("Status") == "destroy" and not guistatus ~= "active" then 
+    if Version:GetAttribute("Status") == "destroy" and not guistatus ~= "active" then
         log("收到销毁信号，正在销毁 GUI...", "out")
-        DestroyNvi() 
+        DestroyNvi()
     end 
 end))
 
