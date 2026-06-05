@@ -25,8 +25,8 @@ local Config = {
         showerror = true,
         showinfo = true,
         autoscroll = true,
-        maxmessages = 500,       
-        filterkeywords = {}     
+        maxmessages = 500, 
+        filterkeywords = {}
     },
     NavigationHistory = {
         maxhistory = 50,
@@ -110,113 +110,6 @@ local function CreateAPI(name: string, fallback: any, ...)
     end
 end
 
-local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchcharacter)
-    if guistatus ~= "active" then return end
-
-    timeout = timeout or 60
-    basedelay = basedelay or 0.3
-    local value, connection_async, starttime, expired = nil, nil, os.clock(), false
-    
-    task.spawn(function()
-        while not expired do
-            local success, newvalue = pcall(loader)
-            if success and newvalue ~= nil then
-                value = newvalue
-                break
-            end
-            
-            if os.clock() - starttime >= timeout then 
-                expired = true
-                break
-            end
-            
-            task.wait(basedelay)
-        end
-        
-        if value == nil then
-            log("值加载超时：" .. tostring(valuename) .. " (超过 " .. timeout .. "秒)", "warn")
-        end
-    end)
-    
-    if watchcharacter and Players and Players.LocalPlayer then
-        connection_async = Players.LocalPlayer.CharacterAdded:Connect(function()
-            task.wait(0.1)
-            local success, newvalue = pcall(loader)
-            if success and newvalue ~= nil then
-                value = newvalue
-                log("角色数据 " .. tostring(valuename) .. " 已更新", "out")
-            end
-        end)
-        table.insert(connections, connection_async)
-    end
-
-    local proxy = { __value = function() return value end }
-    return setmetatable(proxy, {
-        __call = function() return value end,
-        __index = function(_, key)
-            return value and value[key]
-        end
-    }), connection_async
-end
-
-local serviceproxies = {}
-
-Services = setmetatable({}, {
-    __index = function(self, name: string)
-        if rawget(self, name) then
-            return rawget(self, name)
-        end
-        
-        local success, service = pcall(function()
-            return Cloneref(game:GetService(name))
-        end)
-        
-        if success and service then
-            rawset(self, name, service)
-            return service
-        end
-
-        if serviceproxies[name] then
-            return serviceproxies[name]
-        end
-        
-        log("服务加载失败：" .. name .. " (后台重试)", "warn")
-        
-        local proxy = setmetatable({}, {
-            __index = function(_, key)
-                log("访问未就绪服务：" .. name .. "." .. key .. " (返回空函数)", "warn")
-                return function() end
-            end,
-            __call = function()
-                log("尝试调用未就绪服务：" .. name .. " (已丢弃)", "warn")
-                return nil, "SERVICE_NOT_READY"
-            end
-        })
-
-        serviceproxies[name] = proxy
-        rawset(self, name, proxy)
-        
-        task.spawn(function()
-            for retries = 1, 10 do
-                task.wait(math.min(retries * 0.5, 2))
-                success, service = pcall(function()
-                    return game:GetService(name)
-                end)
-                if success and service then
-                    service = Cloneref(service)
-                    rawset(self, name, service)
-                    log("服务已就绪：" .. name, "out")
-                    break
-                end
-            end
-            if not success then
-                log("服务永久失败：" .. name, "error")
-            end
-        end)
-        return proxy
-    end
-})
-
 Cloneref = CreateAPI("Cloneref", function(v) return v end, cloneref)
 Queueteleport = CreateAPI("Queueteleport", function() end,
     queue_on_teleport,
@@ -284,6 +177,65 @@ Getconnections = CreateAPI("Getconnections", function() end,
     getconnections,
     get_signal_cons
 )
+
+local serviceproxies = {}
+
+Services = setmetatable({}, {
+    __index = function(self, name: string)
+        if rawget(self, name) then
+            return rawget(self, name)
+        end
+        
+        local success, service = pcall(function()
+            return Cloneref(game:GetService(name))
+        end)
+        
+        if success and service then
+            rawset(self, name, service)
+            return service
+        end
+
+        if serviceproxies[name] then
+            return serviceproxies[name]
+        end
+        
+        log("服务加载失败：" .. name .. " (后台重试)", "warn")
+        
+        local proxy = setmetatable({}, {
+            __index = function(_, key)
+                log("访问未就绪服务：" .. name .. "." .. key .. " (返回空函数)", "warn")
+                return function() end
+            end,
+            __call = function()
+                log("尝试调用未就绪服务：" .. name .. " (已丢弃)", "warn")
+                return nil, "SERVICE_NOT_READY"
+            end
+        })
+
+        serviceproxies[name] = proxy
+        rawset(self, name, proxy)
+        
+        task.spawn(function()
+            for retries = 1, 10 do
+                task.wait(math.min(retries * 0.5, 2))
+                success, service = pcall(function()
+                    return game:GetService(name)
+                end)
+                if success and service then
+                    service = Cloneref(service)
+                    rawset(self, name, service)
+                    log("服务已就绪：" .. name, "out")
+                    break
+                end
+            end
+            if not success then
+                log("服务永久失败：" .. name, "error")
+            end
+        end)
+        return proxy
+    end
+})
+
 Workspace = Services.Workspace
 CoreGui = Services.CoreGui
 Players = Services.Players
@@ -302,6 +254,56 @@ TestService = Services.TestService
 Stats = Services.Stats
 PlaceId = game.PlaceId
 JobId = game.JobId
+
+local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchcharacter)
+    if guistatus ~= "active" then return end
+
+    timeout = timeout or 60
+    basedelay = basedelay or 0.3
+    local value, connection, starttime, expired = nil, nil, os.clock(), false
+    
+    task.spawn(function()
+        while not expired do
+            local success, newvalue = pcall(loader)
+            if success and newvalue ~= nil then
+                value = newvalue
+                break
+            end
+            
+            if os.clock() - starttime >= timeout then 
+                expired = true
+                break
+            end
+            
+            task.wait(basedelay)
+        end
+        
+        if value == nil then
+            log("值加载超时：" .. tostring(valuename) .. " (超过 " .. timeout .. "秒)", "warn")
+        end
+    end)
+    
+    if watchcharacter and Players and Players.LocalPlayer then
+        connection = Players.LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.1)
+            local success, newvalue = pcall(loader)
+            if success and newvalue ~= nil then
+                value = newvalue
+                log("角色数据 " .. tostring(valuename) .. " 已更新", "out")
+            end
+        end)
+        table.insert(connections, connection)
+    end
+
+    local proxy = { __value = function() return value end }
+    return setmetatable(proxy, {
+        __call = function() return value end,
+        __index = function(_, key)
+            return value and value[key]
+        end
+    }), connection
+end
+
 Localcam = Workspace.Camera
 Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue("LocalPlayer", function()
