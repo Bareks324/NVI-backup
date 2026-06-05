@@ -1546,7 +1546,7 @@ local function GetNextParamHint(rawinput)
 
     local placeholders = {}
     for _, token in ipairs(cmdinfo.usage) do
-        if type(token) == "string" and (token:match("{") or token:match("<")) then
+        if type(token) == "string" and (token:match("{") or token:match("<") or token:match("%[") or token:match("%]")) then
             table.insert(placeholders, token)
         end
     end
@@ -1573,7 +1573,7 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
     TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, GetTextWidth(TextBox_ConsoleInput.Text, TextBox_ConsoleInput.TextSize, TextBox_ConsoleInput.Font) + 5, 0.91 , 0)
     TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
     local nexthint = GetNextParamHint(TextBox_ConsoleInput.Text)
-    if nexthint and nexthint ~= "" and TextBox_ConsoleInput.Text:sub(-1) == " " then
+    if nexthint and nexthint ~= "" and (TextBox_ConsoleInput.Text:sub(-1) == "[" or TextBox_ConsoleInput.Text:sub(-1) == "]" or TextBox_ConsoleInput.Text:sub(-1) == " ") then
         TextLabel_ConsoleInputTipLabel.Text = nexthint
         TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
         TextLabel_ConsoleInputTipLabel.Visible = true
@@ -1725,7 +1725,7 @@ local sitconn = {}
 
 RegisterCommand("sit", {
     aliases = {},
-    usage = {";sit ", "{状态}", "[", "{模式}", "]"},
+    usage = {";sit ", "{状态}", "[", "]"},
     description = [[让你的角色坐下或站起
 
     此操作将使你的角色坐下或站起
@@ -1806,7 +1806,7 @@ end
 
 RegisterCommand("freeze", {
     aliases = {},
-    usage = {";freeze", "{状态}", "[", "{模式}", "]"},
+    usage = {";freeze", "{状态}", "[", "]"},
     description = [[冻结你自己!
 
     此操作将冻结你的角色, 使其无法移动
@@ -1885,7 +1885,7 @@ RegisterCommand("freeze", {
 
 RegisterCommand("print", {
     aliases = {"echo"},
-    usage = {";print", "<文本>", "[", "{文本类型}", "]"},
+    usage = {";print", "<文本>", "[", "]"},
     description = [[输出文本到控制台
 
      此操作将会将输入的参数输出到控制台, 使用 F9 打开控制台
@@ -1901,17 +1901,13 @@ RegisterCommand("print", {
     使用实例:
     ;print "Hello World" [messagetype == warn] ]],
     handler = function(args, raw, extra)
-        if #args == 0 then
-            return false, "参数不足"
-        end
-
+        if #args == 0 then return false, "参数不足" end
+            
         local message = raw:match('"([^"]*)"')
-        if not message or message == "" then
-            return false, "请使用双引号包裹文本，例如 ;print \"Hello World\""
-        end
-
+        if not message or message == "" then return false, "请使用双引号包裹文本，例如 ;print \"Hello World\"" end
+            
         if #extra > 0 then
-            local longmatched, shortmatched, messagetype = false, false, nil
+            local longmatched, messagetype = false, false, nil
             for _, part in ipairs(extra) do
                 local longmatch, shortmatch = part:match("^messagetype%s*==%s*(%w+)$"), part:match("^%-([%w+])$")
 
@@ -1921,7 +1917,6 @@ RegisterCommand("print", {
                 end
 
                 if shortmatch then
-                    shortmatched = true
                     if longmatched then
                         return false, "同时使用了长格式和短格式的消息类型，请选择一种格式"
                     end
@@ -1961,7 +1956,7 @@ local originalwalkspeed, walkspeedconn = nil, {}
 
 RegisterCommand("walkspeed", {
     aliases = {"ws", "speed"},
-    usage = {";walkspeed", "<操作>", "<数值>", "[", "{模式}", "]"},
+    usage = {";walkspeed", "<操作>", "<数值>", "[", "]"},
     description = [[设置角色移动速度
     
     此操作将设置你角色的 WalkSpeed 属性, 影响角色的移动速度
@@ -2046,7 +2041,7 @@ local originaljumppower, jumppowerconn = nil, {}
 
 RegisterCommand("jumppower", {
     aliases = {"jp"},
-    usage = {";jumppower", "<操作>", "<数值>", "[", "{模式}", "]"},
+    usage = {";jumppower", "<操作>", "<数值>", "[", "]"},
     description = [[设置角色跳跃力
 
     此操作将设置你角色的 JumpPower 属性, 影响角色的基础跳跃高度
@@ -2131,7 +2126,7 @@ local originaljumpheight, jumpheightconn = nil, {}
 
 RegisterCommand("jumpheight", {
     aliases = {"jh"},
-    usage = {";jumpheight", "<操作>", "<数值>", "[", "{模式}", "]"},
+    usage = {";jumpheight", "<操作>", "<数值>", "[", "]"},
     description = [[设置角色跳跃高度
 
     此操作将设置你角色的 JumpHeight 属性, 影响角色的物理跳跃高度
@@ -2253,7 +2248,7 @@ local l33tmap = {
 
 RegisterCommand("chat", {
     aliases = {"say"},
-    usage = {";chat", "<消息>", "[", "{频道}", "{模式}", "]"},
+    usage = {";chat", "<消息>", "[", "]"},
     description = [[在聊天中输出内容
 
     此操作将会在聊天中输出指定的消息
@@ -2277,7 +2272,7 @@ RegisterCommand("chat", {
     handler = function(args, raw, extra)
         local message = raw:match('"([^"]*)"')
 
-        if #args > 2 then return false, "参数过多!"
+        if #args > 1 then return false, "参数过多!"
         elseif #extra > 2 then return false, "配置过多!"
         elseif not message then return false, "请使用双引号包裹文本，例如 ;chat \"Hello World\"" 
         elseif message == "" then return false, "文本不可为空!" end
@@ -2339,16 +2334,10 @@ RegisterCommand("chat", {
     end
 })
 
-local isfly, flyconn, lastrebuildtime, flightobjects = false, {}, 0, {
-    LinearVelocity = nil,
-    Attachment = nil,
-    PlatformPart = nil,
-    floatvalue = -31
-}
+local flyconn = {}
 
-local function StopFlight() 
+local function StopFlight()
     local rootpart = Localroot()
-
     if not rootpart then return false, "无法获取 HumanoidRootPart" end
 
     for i = #flyconn, 1, -1 do
@@ -2357,20 +2346,11 @@ local function StopFlight()
         flyconn[i] = nil
     end
 
-    local velocity = rootpart:FindFirstChild("LinearVelocity_Flight")
-    local attachment = rootpart:FindFirstChild("Attachment_Flight")
-    local platform = rootpart:FindFirstChild("PlatformPart_Flight")
-
-    if velocity then velocity:Destroy() end
-    if attachment then attachment:Destroy() end
-    if platform then platform:Destroy() end
+    for _, name in ipairs({"LinearVelocity_Flight", "Attachment_Flight", "PlatformPart_Flight"}) do
+        local obj = rootpart:FindFirstChild(name)
+        if obj then obj:Destroy() end
+    end
     if rootpart.Anchored then rootpart.Anchored = false end
-
-    isfly = false
-    flightobjects.LinearVelocity = nil
-    flightobjects.Attachment = nil
-    flightobjects.PlatformPart = nil
-    flightobjects.floatvalue = -31
 end
 
 RegisterCommand("flight", {
@@ -2407,62 +2387,69 @@ RegisterCommand("flight", {
 
         if not rootpart then return false, "无法获取 HumanoidRootPart, 请确保角色已加载"
         elseif #args > 2 then return false, "参数过多" end
-            
-        StopFlight() 
 
-        local move, flyspeed = args[1] or "normal", args[2] or 16
+        local move, flyspeed, isfly = args[1] or "noinput", args[2] or 16, false
 
-        if move == "normal" or move == "velocity" or move == "n" or move == "v" then
+        for _, name in ipairs({"LinearVelocity_Flight", "Attachment_Flight", "PlatformPart_Flight"}) do
+            local obj = rootpart:FindFirstChild(name)
+            if obj then
+                isfly = true
+            end
+        end
+        if not isfly and rootpart.Anchored then isfly = true end
+
+        if #args == 0 and isfly then
+            StopFlight()
+            return true, "飞行已关闭"
+        end
+
+        StopFlight()
+
+        if move == "noinput" or move == "normal" or move == "velocity" or move == "n" or move == "v" then
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
-            flightobjects.Attachment = Instance.new("Attachment")
-            flightobjects.Attachment.Name = "Attachment_Flight"
-            flightobjects.Attachment.Parent = rootpart
+            local Attachment = Instance.new("Attachment")
+            Attachment.Name = "Attachment_Flight"
+            Attachment.Parent = rootpart
 
-            flightobjects.LinearVelocity = Instance.new("LinearVelocity")
-            flightobjects.LinearVelocity.Name = "LinearVelocity_Flight"
-            flightobjects.LinearVelocity.MaxForce = 1e9
-            flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
-            flightobjects.LinearVelocity.Parent = rootpart
+            local LinearVelocity = Instance.new("LinearVelocity")
+            LinearVelocity.Name = "LinearVelocity_Flight"
+            LinearVelocity.MaxForce = 1e9
+            LinearVelocity.Attachment0 = Attachment
+            LinearVelocity.Parent = rootpart
 
             table.insert(flyconn, RunService.Heartbeat:Connect(function()
                 if not rootpart then
-                    isfly = false
                     StopFlight()
                     return false, "无法获取 HumanoidRootPart, 结束飞行 (速率飞行)"
                 end
                 
-                local velocity, attachment = flightobjects.LinearVelocity, flightobjects.Attachment
+                local velocity, attachment = rootpart:FindFirstChild("LinearVelocity_Flight"), rootpart:FindFirstChild("Attachment_Flight")
                 
-                if not attachment and attachment.Parent then
-                    local nowtime = os.clock()
-                    if nowtime - lastrebuildtime < 0.5 then return end
-                    lastrebuildtime = nowtime
-                    log("飞行组件丢失，正在重建...", "out")
+                if not attachment or not attachment.Parent then
+                    log("速率飞行组件 Attachment 丢失, 正在重建...", "out")
                     
-                    if flightobjects.Attachment and not flightobjects.Attachment.Parent then flightobjects.Attachment:Destroy() end
+                    if attachment and not attachment.Parent then attachment:Destroy() end
 
-                    flightobjects.Attachment = Instance.new("Attachment")
-                    flightobjects.Attachment.Name = "Attachment_Flight"
-                    flightobjects.Attachment.Parent = rootpart
-                    flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
-                    return 
+                    Attachment = Instance.new("Attachment")
+                    Attachment.Name = "Attachment_Flight"
+                    Attachment.Parent = rootpart
+                    task.wait(0.01)
+                    velocity.Attachment0 = Attachment
+                    return
                 end
 
-                if not velocity and velocity.Parent then
-                    local nowtime = os.clock()
-                    if nowtime - lastrebuildtime < 0.5 then return end
-                    lastrebuildtime = nowtime
-                    log("飞行组件丢失，正在重建...", "out")
+                if not velocity or not velocity.Parent then
+                    log("速率飞行组件 LinearVelocity 丢失, 正在重建...", "out")
                     
-                    if flightobjects.LinearVelocity and not flightobjects.LinearVelocity.Parent then flightobjects.LinearVelocity:Destroy() end
+                    if velocity and not velocity.Parent then velocity:Destroy() end
 
-                    flightobjects.LinearVelocity = Instance.new("LinearVelocity")
-                    flightobjects.LinearVelocity.Name = "LinearVelocity_Flight"
-                    flightobjects.LinearVelocity.MaxForce = 1e9
-                    flightobjects.LinearVelocity.Attachment0 = flightobjects.Attachment
-                    flightobjects.LinearVelocity.Parent = rootpart
-                    return 
+                    LinearVelocity = Instance.new("LinearVelocity")
+                    LinearVelocity.Name = "LinearVelocity_Flight"
+                    LinearVelocity.MaxForce = 1e9
+                    LinearVelocity.Attachment0 = Attachment
+                    LinearVelocity.Parent = rootpart
+                    return
                 end
                 
                 local look, right = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit, Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z).Unit
@@ -2510,20 +2497,17 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flyconn, humanoid.Died:Connect(function()
-                isfly = false
                 StopFlight()
                 log("角色已死亡，结束飞行 (速率飞行)", "out")
             end))
             for _, connection in ipairs(flyconn) do table.insert(connections, connection) end
             
-            isfly = true
             return true, "飞行(速率飞行)已打开, 速度: " .. flyspeed
         elseif move == "tpcframe" or move == "tc" or move == "tpc" then  
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
             table.insert(flyconn, RunService.Heartbeat:Connect(function(deltatime)
                 if not rootpart then
-                    isfly = false
                     StopFlight()
                     return false, "无法获取 HumanoidRootPart, 结束飞行 (传送模式)"
                 end
@@ -2574,7 +2558,6 @@ RegisterCommand("flight", {
             end))
 
             table.insert(flyconn, humanoid.Died:Connect(function()
-                isfly = false
                 StopFlight()
                 log("角色已死亡，结束飞行 (传送模式)", "out")
             end))
@@ -2590,70 +2573,63 @@ RegisterCommand("flight", {
             end
 
             rootpart.Anchored = true
-            isfly = true
             return true, "飞行 (传送模式) 已打开, 速度: " .. flyspeed
         elseif move == "platform" or move == "p" then
-            if args[2] then
-                return false, "平台飞行模式不需要指定速度参数!"
-            end
+            if args[2] then return false, "平台飞行模式不需要指定速度参数!" end
 
-            flightobjects.PlatformPart = Instance.new("Part")
-            flightobjects.PlatformPart.Name = "PlatformPart_Flight"
-            flightobjects.PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
-            flightobjects.PlatformPart.Anchored = true
-            flightobjects.PlatformPart.CanCollide = true 
-            flightobjects.PlatformPart.Transparency = 0.9
-            flightobjects.PlatformPart.CastShadow = false
-            flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue, 0)
-            flightobjects.PlatformPart.Parent = rootpart
+            local isholdingshift, isholdingspace = false, false
+
+            PlatformPart = Instance.new("Part")
+            PlatformPart.Name = "PlatformPart_Flight"
+            PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
+            PlatformPart.Anchored = true
+            PlatformPart.CanCollide = true
+            PlatformPart.Transparency = 0.9
+            PlatformPart.CastShadow = false
+            PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, -3.1, 0)
+            PlatformPart.Parent = rootpart
 
             table.insert(flyconn, RunService.Heartbeat:Connect(function()
                 if not rootpart then return false, "无法获取 HumanoidRootPart, 结束飞行 (平台模式)" end
                 
-                local platform = flightobjects.PlatformPart
+                local platform = rootpart:FindFirstChild("PlatformPart_Flight")
 
                 if not platform or not platform.Parent then
-                    local nowtime = os.clock()
-
-                    if nowtime - lastrebuildtime < 0.5 then return end
-
-                    lastrebuildtime = nowtime
-                    log("平台组件丢失，正在重建...", "out")
+                    log("平台飞行组件 PlatformPart 丢失, 正在重建...", "out")
 
                     if platform then platform:Destroy() end
 
-                    flightobjects.PlatformPart = Instance.new("Part")
-                    flightobjects.PlatformPart.Name = "PlatformPart_Flight"
-                    flightobjects.PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
-                    flightobjects.PlatformPart.Anchored = true
-                    flightobjects.PlatformPart.CanCollide = true 
-                    flightobjects.PlatformPart.Transparency = 0.9
-                    flightobjects.PlatformPart.CastShadow = false
-                    flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue, 0)
-                    flightobjects.PlatformPart.Parent = rootpart
+                    PlatformPart = Instance.new("Part")
+                    PlatformPart.Name = "PlatformPart_Flight"
+                    PlatformPart.Size = Vector3.new(2, 0.2, 1.5)
+                    PlatformPart.Anchored = true
+                    PlatformPart.CanCollide = true
+                    PlatformPart.Transparency = 0.9
+                    PlatformPart.CastShadow = false
+                    PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, -3.1, 0)
+                    PlatformPart.Parent = rootpart
 
-                    return nil
+                    return
                 end
 
-                flightobjects.PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, flightobjects.floatvalue / 10, 0)
+                PlatformPart.CFrame = rootpart.CFrame * CFrame.new(0, -3.1, 0)
+                if isholdingspace then rootpart.CFrame += Vector3.new(0, 0.25, 0) end
+                if isholdingshift then rootpart.CFrame += Vector3.new(0, -0.5, 0) end
             end))
 
             table.insert(flyconn, UserInputService.InputBegan:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-				if input.KeyCode == Enum.KeyCode.Space then flightobjects.floatvalue += 5
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then flightobjects.floatvalue -= 5
-                end
+				if input.KeyCode == Enum.KeyCode.Space then isholdingspace = true
+				elseif input.KeyCode == Enum.KeyCode.LeftShift then isholdingshift = true end
             end))
 
             table.insert(flyconn, UserInputService.InputEnded:Connect(function(input)
                 if UserInputService:GetFocusedTextBox() ~= nil or guistatus ~= "active" then return end
-                if input.KeyCode == Enum.KeyCode.Space then flightobjects.floatvalue -= 5
-				elseif input.KeyCode == Enum.KeyCode.LeftShift then flightobjects.floatvalue += 5
-                end
+                if input.KeyCode == Enum.KeyCode.Space then isholdingspace = false
+                elseif input.KeyCode == Enum.KeyCode.LeftShift then isholdingshift = false end
             end))
 
             table.insert(flyconn, humanoid.Died:Connect(function()
-                isfly = false
                 StopFlight()
                 log("角色已死亡，结束飞行 (平台模式)", "out")
             end))
@@ -2662,10 +2638,8 @@ RegisterCommand("flight", {
                 table.insert(connections, connection)
             end
 
-            isfly = true
             return true, "飞行 (平台模式) 已打开"
         elseif move == "disabled" or move == "off" then
-            isfly = false
             StopFlight()
             return true, "飞行已关闭"
         else
@@ -2740,7 +2714,7 @@ RegisterCommand("help", {
     ;help jp - 显示 jumppower 指令的详细信息]],
     handler = function(args, _, _)
         if #args == 0 then
-            log("命令格式: <>内为必填项 {}内为选填项 []内为配置项", "out")
+            log("命令格式: <>内为必填项 {}内为选填项 []内为配置项, 如果要使用多个配置项, 请用逗号分隔", "out")
             log("---------- 可用指令列表 ----------", "out")
             for cmdname, cmdinfo in pairs(commandlist) do
                 local usage = table.concat(cmdinfo.usage, " / ")
