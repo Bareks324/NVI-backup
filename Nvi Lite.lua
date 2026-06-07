@@ -1,13 +1,13 @@
 print("-------------------------------")
-VERSION_NUMBER = "00094"
+VERSION_NUMBER = "00095"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
 COLOR_BUTTON_BACKGROUND = Color3.fromRGB(50, 50, 50)
 COLOR_BUTTON_BORDER = Color3.fromRGB(10, 10, 10)
 COLOR_TEXT_NORMAL = Color3.fromRGB(200, 200, 200)
-COLOR_TEXT_OVERLAY = Color3.fromRGB(0, 140, 205)
-COLOR_TEXT_ENABLE = Color3.fromRGB(255, 255, 0)
+COLOR_TEXT_OVERLAY = Color3.fromRGB(255, 230, 120)
+COLOR_TEXT_ENABLE = Color3.fromRGB(168, 255, 198)
 COLOR_TEXT_RED = Color3.fromRGB(195, 87, 74)
 COLOR_TEXT_GREEN = Color3.fromRGB(139, 247, 139)
 COLOR_TEXT_YELLOW = Color3.fromRGB(255, 218, 68)
@@ -18,8 +18,8 @@ local ZINDEX_LABEL = 27
 local ZINDEX_INTERACTABLE = 30
 
 local Config = {
-    Console = {      
-        debuglogs = true,      
+    Console = {
+        debuglogs = true,
         showoutput = true,
         showwarn = true,
         showerror = true,
@@ -39,21 +39,15 @@ local guistatus, candrag, connections = "active", true, {}
 
 local function log(text, mesgtype)
     if not Config.Console or not Config.Console.debuglogs or guistatus ~= "active" then return end
-    if mesgtype == "out" and not Config.Console.showoutput then return end
-    if mesgtype == "warn" and not Config.Console.showwarn then return end
-    if mesgtype == "error" and not Config.Console.showerror then return end
-    if mesgtype == "info" and not Config.Console.showinfo then return end
     
-    if mesgtype == "error" then 
+    if mesgtype == "error" and Config.Console.showerror then
         error("[NVI] " .. text)
-    elseif mesgtype == "warn" then
+    elseif mesgtype == "warn" and Config.Console.showwarn then
         warn("[NVI]", text)
-    elseif mesgtype == "out" then
-        print("[NVI]", text)
-    elseif mesgtype == "info" then
+    elseif mesgtype == "info" and Config.Console.showinfo then
         TestService:Message(text)
-    else 
-        warn("[NVI]", "此消息属于未知频道!", text)
+    elseif Config.Console.showoutput then
+        print("[NVI]", text)
     end
 end
 
@@ -85,7 +79,7 @@ local function CreateAPI(name: string, fallback: any, ...)
                     end
                 end
                 if api then
-                    log("API 已就绪：" .. name, "out")
+                    log("API 已就绪：" .. name)
                     break
                 end
             end
@@ -192,6 +186,7 @@ Services = setmetatable({}, {
         
         if success and service then
             rawset(self, name, service)
+            log("服务已就绪：" .. name)
             return service
         end
 
@@ -224,7 +219,7 @@ Services = setmetatable({}, {
                 if success and service then
                     service = Cloneref(service)
                     rawset(self, name, service)
-                    log("服务已就绪：" .. name, "out")
+                    log("服务已就绪：" .. name)
                     break
                 end
             end
@@ -252,8 +247,6 @@ VoiceChatService = Services.VoiceChatService
 LogService = Services.LogService
 TestService = Services.TestService
 Stats = Services.Stats
-PlaceId = game.PlaceId
-JobId = game.JobId
 
 local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchcharacter)
     if guistatus ~= "active" then return end
@@ -289,7 +282,7 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
             local success, newvalue = pcall(loader)
             if success and newvalue ~= nil then
                 value = newvalue
-                log("角色数据 " .. tostring(valuename) .. " 已更新", "out")
+                log("角色数据 " .. tostring(valuename) .. " 已更新")
             end
         end)
         table.insert(connections, connection)
@@ -304,7 +297,9 @@ local function CreateAsyncValue(valuename, loader, timeout, basedelay, watchchar
     }), connection
 end
 
-Localcam = Workspace.Camera
+PlaceId = game.PlaceId
+JobId = game.JobId
+Localcam = Workspace.CurrentCamera
 Localmouse = UserInputService:GetMouseLocation()
 Localplayer = CreateAsyncValue("LocalPlayer", function()
     return Players and Players.LocalPlayer
@@ -334,7 +329,7 @@ end, 60, 0.1, true)
 local function DestroyNvi()
     if guistatus ~= "active" then return end
 
-    log("开始销毁", "out")
+    log("开始销毁")
     if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
     end
@@ -345,7 +340,7 @@ local function DestroyNvi()
         connections[i] = nil
     end
 
-    log("已销毁 :)", "out")
+    log("已销毁 :)")
     guistatus = "destroy"
 end
 
@@ -394,7 +389,7 @@ local function GetCustomAsset(assetpath: string): string?
     local waitstart = os.clock()
     while not assetsdownloaded do
         if os.clock() - waitstart > 10 then
-            failedassets[assetpath] = true 
+            failedassets[assetpath] = true
             log("资源等待超时：" .. assetpath, "error")
             return nil
         end
@@ -422,12 +417,12 @@ if CoreGui:FindFirstChild("NVIScreenGui") then
         CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
         task.wait(0.5)
         if CoreGui:FindFirstChild("NVIScreenGui") then
-            log("旧版本似乎未检测到信号，强制销毁... NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")", "out")
+            log("旧版本似乎未检测到信号，强制销毁... NVI (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")")
             CoreGui:FindFirstChild("NVIScreenGui"):FindFirstChild("Version"):SetAttribute("Status", "destroy")
             task.wait(0.5)
             CoreGui:FindFirstChild("NVIScreenGui"):Destroy()
         else 
-            log("已销毁，继续注入当前版本... NVI (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")", "out")
+            log("已销毁，继续注入当前版本... NVI (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")")
         end
     else
         log("已存在相同或更新版本 (version-" .. tostring(existprefix) .. tostring(existnumber) .. ")，放弃注入当前版本 (version-" .. VERSION_PREFIX .. VERSION_NUMBER .. ")", "warn")
@@ -650,44 +645,62 @@ TextBox_ConsoleInput.MaxVisibleGraphemes = 200
 TextBox_ConsoleInput.ZIndex = ZINDEX_INTERACTABLE
 TextBox_ConsoleInput.Parent = Area_ConsoleInput
 
-local TextLabel_ConsoleInputTipLabel = Instance.new("TextLabel")
-TextLabel_ConsoleInputTipLabel.Name = "TextLabel_ConsoleInputTipLabel"
-TextLabel_ConsoleInputTipLabel.ZIndex = 25
-TextLabel_ConsoleInputTipLabel.BorderSizePixel = 0
-TextLabel_ConsoleInputTipLabel.BackgroundTransparency = 0.3
-TextLabel_ConsoleInputTipLabel.BackgroundColor3 = COLOR_GUI_BACKGROUND
-TextLabel_ConsoleInputTipLabel.TextColor3 = COLOR_TEXT_NORMAL
-TextLabel_ConsoleInputTipLabel.TextXAlignment = Enum.TextXAlignment.Center
-TextLabel_ConsoleInputTipLabel.TextYAlignment = Enum.TextYAlignment.Center
-TextLabel_ConsoleInputTipLabel.Font = Enum.Font.Code
-TextLabel_ConsoleInputTipLabel.TextSize = 14
-TextLabel_ConsoleInputTipLabel.Text = "提示"
-TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
-TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, 0, 0.91, 0)
-TextLabel_ConsoleInputTipLabel.Visible = false
-TextLabel_ConsoleInputTipLabel.ZIndex = ZINDEX_LABEL
-TextLabel_ConsoleInputTipLabel.Parent = Area_Console
-
 local Area_ConsoleInputHint = Instance.new("Frame")
 Area_ConsoleInputHint.Name = "Area_ConsoleInputHint"
-Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, 25)
-Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -40)
-Area_ConsoleInputHint.BackgroundColor3 = COLOR_GUI_BACKGROUND
-Area_ConsoleInputHint.BackgroundTransparency = 0.3
+Area_ConsoleInputHint.Size = UDim2.new(0, 300, 0, -150)
+Area_ConsoleInputHint.Position = UDim2.new(0, 0, 0.95, 0)
+Area_ConsoleInputHint.BackgroundTransparency = 1
 Area_ConsoleInputHint.BorderSizePixel = 0
-Area_ConsoleInputHint.Visible = false
-Area_ConsoleInputHint.ZIndex = 50
-Area_ConsoleInputHint.Parent = Area_ConsoleInput
+Area_ConsoleInputHint.Visible = true
+Area_ConsoleInputHint.ZIndex = ZINDEX_AREA
+Area_ConsoleInputHint.Parent = Area_Console
 
-local UICorner_ConsoleInputHint = Instance.new("UICorner")
-UICorner_ConsoleInputHint.CornerRadius = UDim.new(0, 3)
-UICorner_ConsoleInputHint.Parent = Area_ConsoleInputHint
+local UIListlayout_ConsoleInputHint = Instance.new("UIListLayout")
+UIListlayout_ConsoleInputHint.Name = "UIListlayout_ConsoleInputHint"
+UIListlayout_ConsoleInputHint.VerticalAlignment = Enum.VerticalAlignment.Bottom
+UIListlayout_ConsoleInputHint.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListlayout_ConsoleInputHint.SortOrder = Enum.SortOrder.LayoutOrder
+UIListlayout_ConsoleInputHint.Parent = Area_ConsoleInputHint
 
-local UIStroke_ConsoleInputHint = Instance.new("UIStroke")
-UIStroke_ConsoleInputHint.Color = COLOR_GUI_BORDER
-UIStroke_ConsoleInputHint.Thickness = 2
-UIStroke_ConsoleInputHint.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-UIStroke_ConsoleInputHint.Parent = Area_ConsoleInputHint
+local TextLabel_ConsoleHintTip = Instance.new("TextLabel")
+TextLabel_ConsoleHintTip.Name = "TextLabel_ConsoleHintTip"
+TextLabel_ConsoleHintTip.BorderColor3 = COLOR_BUTTON_BORDER
+TextLabel_ConsoleHintTip.BackgroundTransparency = 0.3
+TextLabel_ConsoleHintTip.BackgroundColor3 = COLOR_GUI_BACKGROUND
+TextLabel_ConsoleHintTip.TextColor3 = COLOR_TEXT_NORMAL
+TextLabel_ConsoleHintTip.TextXAlignment = Enum.TextXAlignment.Center
+TextLabel_ConsoleHintTip.TextYAlignment = Enum.TextYAlignment.Center
+TextLabel_ConsoleHintTip.Font = Enum.Font.Code
+TextLabel_ConsoleHintTip.TextSize = 14
+TextLabel_ConsoleHintTip.Text = "提示"
+TextLabel_ConsoleHintTip.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleHintTip.Text, TextLabel_ConsoleHintTip.TextSize, TextLabel_ConsoleHintTip.Font) + 20, 0, 20)
+TextLabel_ConsoleHintTip.Position = UDim2.new(0, 1, 0.85, 0)
+TextLabel_ConsoleHintTip.Visible = false
+TextLabel_ConsoleHintTip.ZIndex = ZINDEX_LABEL
+TextLabel_ConsoleHintTip.Parent = Area_ConsoleInputHint
+
+local ScrollingFrame_ConsoleHintList = Instance.new("ScrollingFrame")
+ScrollingFrame_ConsoleHintList.Name = "ScrollingFrame_ConsoleHintList"
+ScrollingFrame_ConsoleHintList.Size = UDim2.new(1, 0, 0, 127.5)
+ScrollingFrame_ConsoleHintList.Position = UDim2.new(0, 1, 0, 0)
+ScrollingFrame_ConsoleHintList.BackgroundColor3 = COLOR_GUI_BACKGROUND
+ScrollingFrame_ConsoleHintList.BackgroundTransparency = 0.3
+ScrollingFrame_ConsoleHintList.BorderColor3 = COLOR_BUTTON_BORDER
+ScrollingFrame_ConsoleHintList.ScrollBarThickness = 9
+ScrollingFrame_ConsoleHintList.ScrollBarImageTransparency = 0.5
+ScrollingFrame_ConsoleHintList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollingFrame_ConsoleHintList.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame_ConsoleHintList.Visible = false
+ScrollingFrame_ConsoleHintList.ZIndex = ZINDEX_LABEL
+ScrollingFrame_ConsoleHintList.Parent = Area_ConsoleInputHint
+
+local UIListLayout_ConsoleHintList = Instance.new("UIListLayout")
+UIListLayout_ConsoleHintList.Name = "UIListLayout_ConsoleHintList"
+UIListLayout_ConsoleHintList.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout_ConsoleHintList.Padding = UDim.new(0, 5)
+UIListLayout_ConsoleHintList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListLayout_ConsoleHintList.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListLayout_ConsoleHintList.Parent = ScrollingFrame_ConsoleHintList
 
 local Area_ConsoleOutput = Instance.new("Frame")
 Area_ConsoleOutput.Name = "Area_ConsoleOutput"
@@ -711,6 +724,13 @@ ScrollingFrame_ConsoleOutput.AutomaticCanvasSize = Enum.AutomaticSize.Y
 ScrollingFrame_ConsoleOutput.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingFrame_ConsoleOutput.ZIndex = ZINDEX_LABEL
 ScrollingFrame_ConsoleOutput.Parent = Area_ConsoleOutput
+
+local UIListLayout_Console = Instance.new("UIListLayout")
+UIListLayout_Console.Name = "UIListLayout_Console"
+UIListLayout_Console.Padding = UDim.new(0, 2)
+UIListLayout_Console.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
+UIListLayout_Console.Parent = ScrollingFrame_ConsoleOutput
 
 local Area_ConsoleOutputSettings = Instance.new("Frame")
 Area_ConsoleOutputSettings.Name = "Area_ConsoleOutputSettings"
@@ -743,13 +763,6 @@ PlaceHolder_ConsoleSetting.Size = UDim2.new(0, 0, 1, 0)
 PlaceHolder_ConsoleSetting.LayoutOrder = 1
 PlaceHolder_ConsoleSetting.ZIndex = ZINDEX_AREA
 PlaceHolder_ConsoleSetting.Parent = Area_ConsoleOutputSettings
-
-local UIListLayout_Console = Instance.new("UIListLayout")
-UIListLayout_Console.Name = "UIListLayout_Console"
-UIListLayout_Console.Padding = UDim.new(0, 2)
-UIListLayout_Console.HorizontalAlignment = Enum.HorizontalAlignment.Left
-UIListLayout_Console.VerticalAlignment = Enum.VerticalAlignment.Top
-UIListLayout_Console.Parent = ScrollingFrame_ConsoleOutput
 
 table.insert(connections, ScrollingFrame_ConsoleOutput.MouseEnter:Connect(function()
     if guistatus ~= "active" then return end
@@ -983,6 +996,7 @@ function Config.NavigationHistory:Push(entry)
     if self.history[self.nowindex] == entry then return end
     table.insert(self.history, entry)
     self.nowindex = #self.history
+    log("增加展示项历史记录: " .. tostring(entry) .. ", 当前历史记录总数: " .. tostring(#self.history))
 end
 
 function Config.NavigationHistory:Back()
@@ -1012,7 +1026,7 @@ local showsettinglist, showmodulelist = nil, nil
 local function UpdateAreaStats()
     if guistatus ~= "active" then return end
 
-    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist), "out")
+    log("目前 showsettinglist 状态为：" .. tostring(showsettinglist))
     if showsettinglist ~= nil and
         showsettinglist ~= "console" and
         showsettinglist ~= "info" and
@@ -1053,7 +1067,7 @@ table.insert(connections, TextButton_Enter.MouseButton1Click:Connect(function()
     local entry = Config.NavigationHistory:Enter()
     if entry then
         showsettinglist = entry
-        UpdateAreaStats() 
+        UpdateAreaStats()
     end
 end))
 
@@ -1116,6 +1130,8 @@ local function CreateModuleListButton(text, codename, order)
         showmodulelist = codename
     end))
 
+    log("创建模块列表展示按钮: " .. text .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
+
     return nil
 end
 
@@ -1163,6 +1179,8 @@ local function CreateSettingListButton(text, codename, order)
         Config.NavigationHistory:Push(showsettinglist) 
         UpdateAreaStats()
     end))
+
+    log("创建展示项展示按钮: " .. text .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
 
     return nil
 end
@@ -1256,6 +1274,8 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
             effect(buttonstauts)
         end
     end))
+
+    log("创建控制 " .. text .. " 的按钮, 初始状态为 " .. tostring(defaultstauts) .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
 
     return {
         Active = function(active)
@@ -1352,19 +1372,19 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
     local success, result1, result2 = pcall(commandlist[mainname].handler, args, rawinput, extra)
     if not success then
         log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
-        log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "), "out")
+        log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "))
         return false, result1
     else 
         table.insert(commandinputlist, rawinput)
         log("增加命令历史记录: " .. rawinput, "out")
         commandhistoryindex = #commandinputlist + 1
-        log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "), "out")
+        log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "))
         
         if not result1 then
             log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
             return false, result2
         else 
-            log("执行成功: " .. tostring(result2 or "无返回值"), "out")
+            log("执行成功: " .. tostring(result2 or "无返回值"))
         end
     end
 
@@ -1401,17 +1421,17 @@ local function RegisterCommand(name: string, config: {
     end
 
     local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
-    log("已注册命令: ;" .. name .. " (" .. aliasesstr .. ")", "out")
+    log("已注册命令: ;" .. name .. " (" .. aliasesstr .. ")")
 
     return true
 end
 
 local ishintpressed = false
 
-local function UpdateCommandHintDisplay()
+local function UpdateCommandInputHintListDisplay()
     if guistatus ~= "active" then return end
 
-    for _, child in ipairs(Area_ConsoleInputHint:GetChildren()) do
+    for _, child in ipairs(ScrollingFrame_ConsoleHintList:GetChildren()) do
         if child:IsA("TextButton") or child:IsA("Frame") or child:IsA("TextLabel") then
             child:Destroy()
         end
@@ -1424,9 +1444,7 @@ local function UpdateCommandHintDisplay()
 
     for cmdname, cmdinfo in pairs(commandlist) do
         local matched, options = false, {cmdname}
-        for _, alias in ipairs(cmdinfo.aliases or {}) do
-            table.insert(options, alias)
-        end
+        for _, alias in ipairs(cmdinfo.aliases or {}) do table.insert(options, alias) end
 
         for _, commandname in pairs(options) do
             if #inputtext > 0 and #commandname > #inputtext and commandname:sub(1, #inputtext) == inputtext then
@@ -1448,81 +1466,84 @@ local function UpdateCommandHintDisplay()
     end)
 
     if #matches > 0 then
-        log("------ 匹配结果 ------", "out")
-        log("匹配数量:" .. tostring(#matches), "out")
+        log("------ 匹配结果 ------")
+        log("匹配数量:" .. tostring(#matches))
         for i, match in ipairs(matches) do
-            log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname), "out")
+            log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname))
         end
-        log("-------------------", "out")
+        log("-------------------")
     end
 
     if #matches == 0 then
-        Area_ConsoleInputHint.Visible = false
+        log("没有匹配的命令 :(")
+        ScrollingFrame_ConsoleHintList.Visible = false
         return
     elseif ishintpressed then
         ishintpressed = false
-        Area_ConsoleInputHint.Visible = false
+        ScrollingFrame_ConsoleHintList.Visible = false
     elseif #matches > 0 then
-        Area_ConsoleInputHint.Visible = true
+        ScrollingFrame_ConsoleHintList.Visible = true
     else
-        Area_ConsoleInputHint.Visible = false
+        ScrollingFrame_ConsoleHintList.Visible = false
     end
 
-    local displaycount = math.min(#matches, 12)
-    local totalheight = displaycount * 20 + 5
-    Area_ConsoleInputHint.Size = UDim2.new(0.99, 0, 0, totalheight)
-    Area_ConsoleInputHint.Position = UDim2.new(0.005, 0, 0, -totalheight - 15)
-    for i = 1, displaycount do
+    if #matches > 5 then
+        ScrollingFrame_ConsoleHintList.Size = UDim2.new(1, 0, 0, 125)
+        ScrollingFrame_ConsoleHintList.Position = UDim2.new(0, 1, 0, 2.5)
+    else
+        ScrollingFrame_ConsoleHintList.Size = UDim2.new(1, 0, 0, #matches * 25)
+        ScrollingFrame_ConsoleHintList.Position = UDim2.new(0, 1, 0, 127.5 - #matches * 25)
+    end
+    
+    for i = 1, #matches do
         if not matches[i] then break end
 
-        local match = matches[i]
-        local cmdinfo = commandlist[match.completename]
+        local TextButton = Instance.new("TextButton")
+        TextButton.Font = Enum.Font.Code
+        TextButton.TextSize = 14
+        TextButton.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, TextButton.TextSize, TextButton.Font), 0, 20)
+        TextButton.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
+        TextButton.Name = "TextButton_CommandHint" .. i
+        TextButton.BackgroundTransparency = 1
+        TextButton.BorderSizePixel = 0
+        TextButton.Text = matches[i].displayname
+        TextButton.TextXAlignment = Enum.TextXAlignment.Left
+        TextButton.TextColor3 = COLOR_TEXT_NORMAL
+        TextButton.ZIndex = ZINDEX_INTERACTABLE
+        TextButton.LayoutOrder = i
+        TextButton.Parent = ScrollingFrame_ConsoleHintList
 
-        local HintButton = Instance.new("TextButton")
-        HintButton.Font = Enum.Font.Code
-        HintButton.TextSize = 14
-        HintButton.Size = UDim2.new(0, GetTextWidth(matches[i].displayname, HintButton.TextSize, HintButton.Font), 0, 20)
-        HintButton.Position = UDim2.new(0, 5, 0, 2 + (i - 1) * 20)
-        HintButton.Name = "TextButton_CommandHint" .. i
-        HintButton.BackgroundTransparency = 1
-        HintButton.BorderSizePixel = 0
-        HintButton.Text = matches[i].displayname
-        HintButton.TextXAlignment = Enum.TextXAlignment.Left
-        HintButton.TextColor3 = COLOR_TEXT_NORMAL
-        HintButton.ZIndex = 53
-        HintButton.Parent = Area_ConsoleInputHint
-
-        local HintUnderline = Instance.new("Frame")
-        HintUnderline.Name = "Underline_CommandHint" .. i
-        HintUnderline.BorderSizePixel = 0
-        HintUnderline.Size = UDim2.new(1, 0, 0, 1)
-        HintUnderline.Position = UDim2.new(0, 0, 0.9, -1)
-        HintUnderline.BackgroundColor3 = COLOR_TEXT_OVERLAY
-        HintUnderline.BackgroundTransparency = 1
-        HintUnderline.ZIndex = 53
-        HintUnderline.Parent = HintButton
+        local Underline = Instance.new("Frame")
+        Underline.Name = "Underline_CommandHint" .. i
+        Underline.BorderSizePixel = 0
+        Underline.Size = UDim2.new(1, 0, 0, 1)
+        Underline.Position = UDim2.new(0, 0, 0.9, -1)
+        Underline.BackgroundColor3 = COLOR_TEXT_OVERLAY
+        Underline.BackgroundTransparency = 1
+        Underline.ZIndex = ZINDEX_INTERACTABLE
+        Underline.Parent = TextButton
 
         local tweeninfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-        table.insert(connections, HintButton.MouseEnter:Connect(function()
+        table.insert(connections, TextButton.MouseEnter:Connect(function()
             if guistatus ~= "active" then return end
-            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
+            local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_OVERLAY})
             tween:Play()
-            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 0})
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 0})
             tween:Play()
             candrag = false
         end))
 
-        table.insert(connections, HintButton.MouseLeave:Connect(function()
+        table.insert(connections, TextButton.MouseLeave:Connect(function()
             if guistatus ~= "active" then return end
-            local tween = TweenService:Create(HintButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
+            local tween = TweenService:Create(TextButton, tweeninfo, {TextColor3 = COLOR_TEXT_NORMAL})
             tween:Play()
-            local tween = TweenService:Create(HintUnderline, tweeninfo, {BackgroundTransparency = 1})
+            local tween = TweenService:Create(Underline, tweeninfo, {BackgroundTransparency = 1})
             tween:Play()
             candrag = true
         end))
 
-        table.insert(connections, HintButton.MouseButton1Click:Connect(function()
+        table.insert(connections, TextButton.MouseButton1Click:Connect(function()
             if guistatus ~= "active" then return end
             local spacepos = TextBox_ConsoleInput.Text:find(" ", 1, true)
             if spacepos then 
@@ -1531,12 +1552,12 @@ local function UpdateCommandHintDisplay()
                 TextBox_ConsoleInput.Text = ";" .. matches[i].completename
             end
             ishintpressed = true
-            TextBox_ConsoleInput:CaptureFocus() 
+            TextBox_ConsoleInput:CaptureFocus()
         end))
     end
 end
 
-local function GetNextParamHint(rawinput)
+local function UpdateCommandInputHintTipDisplay(rawinput)
     if not rawinput or rawinput:match("^%s*$") or guistatus ~= "active" then return "" end
 
     local cmdname = rawinput:match("^%s*;?%s*(%S+)")
@@ -1556,15 +1577,11 @@ local function GetNextParamHint(rawinput)
     if #placeholders == 0 then return "" end
 
     local argstyped = 0
-    for _ in rawinput:gmatch("%S+") do
-        argstyped += 1
-    end
+    for _ in rawinput:gmatch("%S+") do argstyped += 1 end
     argstyped -= 1
     if argstyped < 0 then argstyped = 0 end
 
-    if argstyped < #placeholders then
-        return placeholders[argstyped + 1]
-    end
+    if argstyped < #placeholders then return placeholders[argstyped + 1] end
     
     return nil
 end
@@ -1572,54 +1589,51 @@ end
 table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if guistatus ~= "active" then return end
 
-    TextLabel_ConsoleInputTipLabel.Position = UDim2.new(0, GetTextWidth(TextBox_ConsoleInput.Text, TextBox_ConsoleInput.TextSize, TextBox_ConsoleInput.Font) + 5, 0.91 , 0)
-    TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
-    local nexthint = GetNextParamHint(TextBox_ConsoleInput.Text)
+    Area_ConsoleInputHint.Position = UDim2.new(0, GetTextWidth(TextBox_ConsoleInput.Text, TextBox_ConsoleInput.TextSize, TextBox_ConsoleInput.Font) + 5, 0.95 , 0)
+    TextLabel_ConsoleHintTip.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleHintTip.Text, TextLabel_ConsoleHintTip.TextSize, TextLabel_ConsoleHintTip.Font) + 20, 0, 20)
+    
+    local nexthint = UpdateCommandInputHintTipDisplay(TextBox_ConsoleInput.Text)
     if nexthint and nexthint ~= "" and (TextBox_ConsoleInput.Text:sub(-1) == "[" or TextBox_ConsoleInput.Text:sub(-1) == "]" or TextBox_ConsoleInput.Text:sub(-1) == " ") then
-        TextLabel_ConsoleInputTipLabel.Text = nexthint
-        TextLabel_ConsoleInputTipLabel.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleInputTipLabel.Text, TextLabel_ConsoleInputTipLabel.TextSize, TextLabel_ConsoleInputTipLabel.Font) + 20, 0, 20)
-        TextLabel_ConsoleInputTipLabel.Visible = true
+        log("更新输入提示: " .. nexthint)
+        TextLabel_ConsoleHintTip.Text = nexthint
+        TextLabel_ConsoleHintTip.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleHintTip.Text, TextLabel_ConsoleHintTip.TextSize, TextLabel_ConsoleHintTip.Font) + 20, 0, 20)
+        TextLabel_ConsoleHintTip.Visible = true
     else
-        TextLabel_ConsoleInputTipLabel.Text = ""
-        TextLabel_ConsoleInputTipLabel.Visible = false
+        log("隐藏输入提示")
+        TextLabel_ConsoleHintTip.Text = ""
+        TextLabel_ConsoleHintTip.Visible = false
     end
-end))
-
-table.insert(connections, TextBox_ConsoleInput.Focused:Connect(function()
-    if guistatus ~= "active" then return end
-
-    TextLabel_ConsoleInputTipLabel.Visible = true
 end))
 
 table.insert(connections, TextBox_ConsoleInput.FocusLost:Connect(function(enterpressed: boolean)
     if guistatus ~= "active" or not MainFrame.Visible or not enterpressed then return end
 
     local text = TextBox_ConsoleInput.Text:match("^%s*(.-)%s*$")
-    TextLabel_ConsoleInputTipLabel.Visible = false
+    TextLabel_ConsoleHintTip.Visible = false
     if text:find("^;") then
-        log("> " .. text, "out")
+        log("> " .. text)
         ExecuteCommand(text)
         TextBox_ConsoleInput.Text = ""
         return 
-    elseif text == "" then 
-        log("输入了空内容", "out") 
+    elseif text == "" then
+        log("输入了空内容") 
         TextBox_ConsoleInput.Text = ""
         return 
     else
-        log("> " .. text, "out")
+        log("> " .. text)
         loadstring(TextBox_ConsoleInput.Text)()
         TextBox_ConsoleInput.Text = ""
-        return 
+        return
     end
 end))
 
 table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):Connect(function()
     if guistatus ~= "active" then return end
     if TextBox_ConsoleInput.Text:match("^;.+") and TextBox_ConsoleInput.Text:sub(2):match("%S") then
-        UpdateCommandHintDisplay()
+        UpdateCommandInputHintListDisplay()
     else
-        if Area_ConsoleInputHint.Visible then 
-            Area_ConsoleInputHint.Visible = false
+        if ScrollingFrame_ConsoleHintList.Visible then
+            ScrollingFrame_ConsoleHintList.Visible = false
         end
     end
 end))
@@ -2429,7 +2443,7 @@ RegisterCommand("flight", {
                 local velocity, attachment = rootpart:FindFirstChild("LinearVelocity_Flight"), rootpart:FindFirstChild("Attachment_Flight")
                 
                 if not attachment or not attachment.Parent then
-                    log("速率飞行组件 Attachment 丢失, 正在重建...", "out")
+                    log("速率飞行组件 Attachment 丢失, 正在重建...")
                     
                     if attachment and not attachment.Parent then attachment:Destroy() end
 
@@ -2442,7 +2456,7 @@ RegisterCommand("flight", {
                 end
 
                 if not velocity or not velocity.Parent then
-                    log("速率飞行组件 LinearVelocity 丢失, 正在重建...", "out")
+                    log("速率飞行组件 LinearVelocity 丢失, 正在重建...")
                     
                     if velocity and not velocity.Parent then velocity:Destroy() end
 
@@ -2457,7 +2471,7 @@ RegisterCommand("flight", {
                 local look, right = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit, Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z).Unit
                 if look.Magnitude == 0 then look = Vector3.new(1, 0, 0) end
 
-                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or 
+                local hasinput = control.Forward ~= 0 or control.Backward ~= 0 or
                     control.Left ~= 0 or control.Right ~= 0 or 
                     control.Up ~= 0 or control.Down ~= 0
                 local forward, strafe, vertical, movedirection = control.Forward + control.Backward, control.Left + control.Right, control.Up + control.Down, Vector3.new()
@@ -2483,7 +2497,7 @@ RegisterCommand("flight", {
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
 				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
 					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
-					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
+					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"))
 				end
             end))
 
@@ -2500,12 +2514,12 @@ RegisterCommand("flight", {
 
             table.insert(flyconn, humanoid.Died:Connect(function()
                 StopFlight()
-                log("角色已死亡，结束飞行 (速率飞行)", "out")
+                log("角色已死亡，结束飞行 (速率飞行)")
             end))
             for _, connection in ipairs(flyconn) do table.insert(connections, connection) end
             
             return true, "飞行(速率飞行)已打开, 速度: " .. flyspeed
-        elseif move == "tpcframe" or move == "tc" or move == "tpc" then  
+        elseif move == "tpcframe" or move == "tc" or move == "tpc" then
             local control = { Forward = 0, Backward = 0, Left = 0, Right = 0, Up = 0, Down = 0, SpeedModifier = 1}
 
             table.insert(flyconn, RunService.Heartbeat:Connect(function(deltatime)
@@ -2544,7 +2558,7 @@ RegisterCommand("flight", {
 				elseif input.KeyCode == Enum.KeyCode.LeftShift then control.Down = -1
 				elseif input.KeyCode == Enum.KeyCode.LeftControl then 
 					control.SpeedModifier = control.SpeedModifier == 1 and 2.5 or 1
-					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"), "out")
+					log("速度模式: " .. (control.SpeedModifier == 2.5 and "快" or "中"))
 				end
             end))
 
@@ -2561,7 +2575,7 @@ RegisterCommand("flight", {
 
             table.insert(flyconn, humanoid.Died:Connect(function()
                 StopFlight()
-                log("角色已死亡，结束飞行 (传送模式)", "out")
+                log("角色已死亡，结束飞行 (传送模式)")
             end))
 
             table.insert(flyconn, rootpart:GetPropertyChangedSignal("Anchored"):Connect(function()
@@ -2597,7 +2611,7 @@ RegisterCommand("flight", {
                 local platform = rootpart:FindFirstChild("PlatformPart_Flight")
 
                 if not platform or not platform.Parent then
-                    log("平台飞行组件 PlatformPart 丢失, 正在重建...", "out")
+                    log("平台飞行组件 PlatformPart 丢失, 正在重建...")
 
                     if platform then platform:Destroy() end
 
@@ -2633,7 +2647,7 @@ RegisterCommand("flight", {
 
             table.insert(flyconn, humanoid.Died:Connect(function()
                 StopFlight()
-                log("角色已死亡，结束飞行 (平台模式)", "out")
+                log("角色已死亡，结束飞行 (平台模式)")
             end))
 
             for _, connection in ipairs(flyconn) do
@@ -2716,13 +2730,13 @@ RegisterCommand("help", {
     ;help jp - 显示 jumppower 指令的详细信息]],
     handler = function(args, _, _)
         if #args == 0 then
-            log("命令格式: <>内为必填项 {}内为选填项 []内为配置项, 如果要使用多个配置项, 请用逗号分隔", "out")
-            log("---------- 可用指令列表 ----------", "out")
+            log("命令格式: <>内为必填项 {}内为选填项 []内为配置项, 如果要使用多个配置项, 请用逗号分隔")
+            log("---------- 可用指令列表 ----------")
             for cmdname, cmdinfo in pairs(commandlist) do
                 local usage = table.concat(cmdinfo.usage, " / ")
-                log(string.format("%s - %s - %s", cmdname, usage, string.match(cmdinfo.description, "^[^\n\r]+")), "out")
+                log(string.format("%s - %s - %s", cmdname, usage, string.match(cmdinfo.description, "^[^\n\r]+")))
             end
-            log("------------------------------", "out")
+            log("------------------------------")
             return true, "已显示所有指令"
         else
             local targetcmd = args[1]:lower()
@@ -2731,12 +2745,12 @@ RegisterCommand("help", {
                 return false, "未知指令：" .. targetcmd
             end
             local cmd = commandlist[mainname]
-            log("------------ 指令详情 ------------", "out")
-            log(string.format("指令名：%s", cmd.main), "out")
-            log(string.format("别名：%s", table.concat(cmd.aliases, ", ")), "out")
-            log(string.format("用法：%s", table.concat(cmd.usage, " / ")), "out")
-            log(string.format("描述：%s", cmd.description), "out")
-            log("-------------------------------", "out")
+            log("------------ 指令详情 ------------")
+            log(string.format("指令名：%s", cmd.main))
+            log(string.format("别名：%s", table.concat(cmd.aliases, ", ")))
+            log(string.format("用法：%s", table.concat(cmd.usage, " / ")))
+            log(string.format("描述：%s", cmd.description))
+            log("-------------------------------")
             return true, "已显示指令详情"
         end
     end
@@ -2836,9 +2850,9 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
 
     if input.KeyCode == Enum.KeyCode.RightShift and not UserInputService:GetFocusedTextBox() then
         MainFrame.Visible = not MainFrame.Visible
-        log("GUI 状态已变为：" .. tostring(MainFrame.Visible), "out")
+        log("GUI 状态已变为：" .. tostring(MainFrame.Visible))
     elseif input.KeyCode == Enum.KeyCode.Semicolon  and not UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
-        log("按下分号键，正在聚焦命令输入框...", "out")
+        log("按下分号键，正在聚焦命令输入框...")
         RunService.RenderStepped:Wait()
         TextBox_ConsoleInput:CaptureFocus()
         if TextBox_ConsoleInput.Text == "" then
@@ -2846,12 +2860,12 @@ table.insert(connections, UserInputService.InputBegan:Connect(function(input)
             TextBox_ConsoleInput.CursorPosition = 2
         end
     elseif input.KeyCode == Enum.KeyCode.Up and #commandinputlist > 0 and commandhistoryindex > 1 and UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
-        log("查看上一条命令输入...", "out")
+        log("查看上一条命令输入...")
         commandhistoryindex -= 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
         TextBox_ConsoleInput.CursorPosition = 999
     elseif input.KeyCode == Enum.KeyCode.Down and not commandhistoryindex == #commandinputlist and commandhistoryindex < #commandinputlist and UserInputService:GetFocusedTextBox() and MainFrame.Visible and Area_Console.Visible then
-        log("查看下一条命令输入...", "out")
+        log("查看下一条命令输入...")
         commandhistoryindex += 1
         TextBox_ConsoleInput.Text = commandinputlist[commandhistoryindex]
         TextBox_ConsoleInput.CursorPosition = #TextBox_ConsoleInput.Text + 1
@@ -2897,13 +2911,13 @@ table.insert(connections, UserInputService.InputEnded:Connect(function(input)
 end))
 
 table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(function()
-    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Status")), "out")
+    log("收到信号, 当前状态为：" .. tostring(Version:GetAttribute("Status")))
     if Version:GetAttribute("Status") == "destroy" and not guistatus ~= "active" then
-        log("收到销毁信号，正在销毁 GUI...", "out")
+        log("收到销毁信号，正在销毁 GUI...")
         DestroyNvi()
     end 
 end))
 
 print("-------------------------------")
-log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.", "out")
+log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.")
 ScreenGui.Destroying:Connect(DestroyNvi)
