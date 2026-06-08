@@ -1,5 +1,5 @@
 print("-------------------------------")
-VERSION_NUMBER = "00096"
+VERSION_NUMBER = "00097"
 VERSION_PREFIX = "indev"
 COLOR_GUI_BORDER = Color3.fromRGB(200, 0, 0)
 COLOR_GUI_BACKGROUND = Color3.fromRGB(30, 30, 30)
@@ -52,13 +52,6 @@ local function log(text, mesgtype)
     end
 end
 
-local function GetTextWidth(text, fontsize, font)
-    if not text or text == "" or guistatus ~= "active" then return 0 end
-    local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
-    local size = TextService:GetTextSize(text, fontsize, font, Vector2.new(10000, 1000))
-    return size.X
-end
-
 local function DestroyNvi()
     if guistatus ~= "active" then return end
 
@@ -77,6 +70,22 @@ local function DestroyNvi()
     guistatus = "destroy"
 end
 
+local function GetTextWidth(text, fontsize, font)
+    if not text or text == "" or guistatus ~= "active" then return 0 end
+    local fontsize, font = fontsize or 14 ,font or Enum.Font.Code
+    local size = TextService:GetTextSize(text, fontsize, font, Vector2.new(10000, 1000))
+    return size.X
+end
+
+local function SafeCall(func, ...)
+    local success, result = pcall(func, ...)
+    if not success then
+        local trace = debug and debug.traceback("安全调用函数捕获异常:", 3) or tostring(result)
+        log(trace, "error")
+    end
+    return success, result
+end
+
 local function CreateAPI(name: string, fallback: any, ...)
     if guistatus ~= "active" then return end
 
@@ -85,14 +94,14 @@ local function CreateAPI(name: string, fallback: any, ...)
     for _, candidate in ipairs(args) do
         if type(candidate) == "function" then
             api = candidate
-            log("API 已就绪：" .. name)
+            -- log("API 已就绪：" .. name)
             break
         end
     end
 
     if not api and type(fallback) == "function" then
         api = fallback
-        log("API 已就绪：" .. name)
+        -- log("API 已就绪：" .. name)
     end
     
     if not api then
@@ -107,7 +116,7 @@ local function CreateAPI(name: string, fallback: any, ...)
                     end
                 end
                 if api then
-                    log("API 已就绪：" .. name)
+                    -- log("API 已就绪：" .. name)
                     break
                 end
             end
@@ -214,7 +223,7 @@ Services = setmetatable({}, {
         
         if success and service then
             rawset(self, name, service)
-            log("服务已就绪: " .. name)
+            -- log("服务已就绪: " .. name)
             return service
         end
 
@@ -892,70 +901,149 @@ local function RefreshConsoleDisplay()
     if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
     for _, child in ipairs(ScrollingFrame_ConsoleOutput:GetChildren()) do
         if child:IsA("TextLabel") then
-            local messagetype = child:GetAttribute("MessageType") or "INFO"
-            if messagetype == "ERROR" then
+            local msgtype = child:GetAttribute("MessageType") or "INFO"
+            if msgtype == "ERROR" then
                 child.Visible = Config.Console.showerror
-            elseif messagetype == "WARN" then
+            elseif msgtype == "WARN" then
                 child.Visible = Config.Console.showwarn
-            elseif messagetype == "OUT" then
+            elseif msgtype == "OUT" then
                 child.Visible = Config.Console.showoutput
-            elseif messagetype == "INFO" then
+            elseif msgtype == "INFO" then
                 child.Visible = Config.Console.showinfo
             else
-                log("未知的消息类型: " .. tostring(messagetype), "warn")
+                log("未知的消息类型: " .. tostring(msgtype), "warn")
             end
         end
     end
 end
 
-table.insert(connections, LogService.MessageOut:Connect(function(message, messagetype)
-    if messagetype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
-    if messagetype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
-    if messagetype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
-    if messagetype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
-    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
-    if not message then return "" end
-    
-    local logtype = "out"
-    if messagetype == Enum.MessageType.MessageOutput then
-        logtype = "out"
-    elseif messagetype == Enum.MessageType.MessageInfo then
-        logtype = "info"
-    elseif messagetype == Enum.MessageType.MessageError then
-        logtype = "error"
-    elseif messagetype == Enum.MessageType.MessageWarning then
-        logtype = "warning"
-    else
-        logtype = "unknown"
-    end
-    
-    for _, keyword in ipairs(Config.Console.filterkeywords) do
-        if message:find(keyword, 1, true) then
-            return
-        end
-    end
-    local timestamp, escapedtext = os.date("%H:%M:%S"), message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-    local typelabel, timestampcolor, contentcolor = "OUT", "#C8C8C8", COLOR_TEXT_NORMAL
-    if logtype == "out" then
-        typelabel = "OUT"
-        timestampcolor = "#C8C8C8"
-        contentcolor = COLOR_TEXT_NORMAL
-    elseif logtype == "info" then
-        typelabel = "INFO"
-        timestampcolor = "#00A2FF"
-        contentcolor = COLOR_TEXT_BLUE
-    elseif logtype == "error" then
-        typelabel = "ERROR"
-        timestampcolor = "#C3574A"
-        contentcolor = COLOR_TEXT_RED
-    elseif logtype == "warning" then
-        typelabel = "WARN"
-        timestampcolor = "#FFDA44"
-        contentcolor = COLOR_TEXT_YELLOW
+local function ParseErrorMessage(message: string)
+    if not message then
+        return {
+            source = "未知来源",
+            sourcetype = "未知脚本类型",
+            line = "未知行",
+            funcname = "未知名称",
+            errormsg = message or "空错误消息",
+            fulltrace = message or "空完整消息"
+        }
     end
 
-    local children, labelcount, r, g, b, logprefix = ScrollingFrame_ConsoleOutput:GetChildren(), 0, math.floor(contentcolor.R * 255), math.floor(contentcolor.G * 255), math.floor(contentcolor.B * 255), string.format('<font color="%s">[%s/%s]</font>', timestampcolor, timestamp, typelabel)
-    local messagetext = string.format('%s <font color="#%s">%s</font>', logprefix, string.format("%02X%02X%02X", r, g, b), escapedtext)
+    local lines = {}
+    for line in message:gmatch("[^\r\n]+") do
+        table.insert(lines, line)
+    end
+
+    local errormsg = lines[1] or message
+    for _, line in ipairs(lines) do
+        if line:match("%]: ") or line:match("%[NVI%]") then
+            local msg = line:match("%]: (.+)$") or line:match("%[NVI%] (.+)$")
+
+            if msg and msg ~= "" then
+                errormsg = msg
+                break
+            end
+        end
+    end
+
+    local source, linenum, funcname = "未知来源", "未知行", "未知名称"
+    for _, line in ipairs(lines) do
+        local scriptpath, linematch, funcmatch = line:match("Script '([^']+)'"), line:match("Line (%d+)"), line:match("function ([%w_]+)")
+        
+        if scriptpath and linematch then
+            source = scriptpath
+            linenum = linematch
+            if funcmatch then
+                funcname = funcmatch
+            end
+            break
+        end
+    end
+
+    if source == "未知来源" then
+        for _, line in ipairs(lines) do
+            local altsource = line:match("([^%s:]+):(%d+)%s*-")
+            if altsource then
+                source = altsource
+                linenum = line:match(":(%d+)%s*-") or linenum
+                break
+            end
+        end
+    end
+
+    local sourcetype = "未知脚本类型"
+
+    local parts = {}
+    for part in source:gmatch("[^%.]+") do
+        -- log("解析路径部分: " .. part)
+        table.insert(parts, part)
+    end
+    
+    local current = game
+    for _, partname in ipairs(parts) do
+        local found = current:FindFirstChild(partname)
+        -- log("查找子对象: " .. partname .. " -> " .. (found and found.ClassName or "未找到"))
+        if found then
+            current = found
+        else
+            sourcetype = "未知脚本类型"
+        end
+    end
+
+    sourcetype = current.ClassName or "未知脚本类型"
+
+    return {
+        source = source,
+        sourcetype = sourcetype,
+        line = linenum,
+        funcname = funcname,
+        errormsg = errormsg,
+        fulltrace = message
+    }
+end
+
+local consolemessagecount = 0
+
+table.insert(connections, LogService.MessageOut:Connect(function(message, msgtype)
+    if msgtype == Enum.MessageType.MessageOutput and not Config.Console.showoutput then return end
+    if msgtype == Enum.MessageType.MessageWarning and not Config.Console.showwarn then return end
+    if msgtype == Enum.MessageType.MessageError and not Config.Console.showerror then return end
+    if msgtype == Enum.MessageType.MessageInfo and not Config.Console.showinfo then return end
+    if not ScrollingFrame_ConsoleOutput or guistatus ~= "active" then return end
+    if not message or message == "" then return end 
+
+    for _, keyword in ipairs(Config.Console.filterkeywords) do
+        if message:find(keyword, 1, true) then return end
+    end
+
+    local logtype, typelabel, labelcolor = "out", "OUT", "#C8C8C8"
+    if msgtype == Enum.MessageType.MessageInfo then
+        logtype, typelabel, labelcolor = "info", "INFO", "#00A2FF"
+    elseif msgtype == Enum.MessageType.MessageError then
+        logtype, typelabel, labelcolor = "error", "ERROR", "#C3574A"
+    elseif msgtype == Enum.MessageType.MessageWarning then
+        logtype, typelabel, labelcolor = "warning", "WARN", "#FFDA44"
+    end
+
+    local timestamp, labeltext = os.date("%H:%M:%S"), message:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    
+    if logtype == "error" and ParseErrorMessage then
+        local parsed = ParseErrorMessage(message)
+        labeltext = string.format(
+            "消息来源: <font color='#C3574A'>%s (%s)</font>\n" ..
+            "错误行位置: <font color='#C3574A'>行 %s</font>\n" ..
+            "函数名称: <font color='#C3574A'>%s</font>\n" ..
+            "报错消息: <font color='#C3574A'>%s</font>\n" ..
+            "-------------------\n" ..
+            "完整堆栈:\n<font color='#C3574A'>%s</font>\n" ..
+            "-------------------",
+            parsed.source or "未知", parsed.sourcetype or "未知",
+            parsed.line or "未知", parsed.funcname or "未知",
+            parsed.errormsg or "无详情", parsed.fulltrace or "无堆栈"
+        )
+    end
+
+    local messagetext = string.format('%s <font color="#%s">%s</font>', string.format('<font color="%s">[%s/%s]</font>', labelcolor, timestamp, typelabel), labelcolor, labeltext)
 
     local TextLabel = Instance.new("TextLabel")
     TextLabel.RichText = true
@@ -972,20 +1060,19 @@ table.insert(connections, LogService.MessageOut:Connect(function(message, messag
     TextLabel.ZIndex = 13
     TextLabel.Parent = ScrollingFrame_ConsoleOutput
     TextLabel:SetAttribute("MessageType", typelabel)
+    TextLabel.LayoutOrder = consolemessagecount + 1
 
-    for _, child in pairs(children) do
-        if child:IsA("TextLabel") then
-            labelcount += 1
+    consolemessagecount += 1
+    if consolemessagecount > Config.Console.maxmessages then
+        local oldest = ScrollingFrame_ConsoleOutput:FindFirstChildWhichIsA("TextLabel")
+        if oldest then
+            oldest:Destroy()
+            consolemessagecount -= 1
         end
     end
-    if labelcount > Config.Console.maxmessages then
-        local oldestlabel = children[1]
-        if oldestlabel and oldestlabel:IsA("TextLabel") then
-            oldestlabel:Destroy()
-        end
-    end
+
     if Config.Console.autoscroll then
-        ScrollingFrame_ConsoleOutput.CanvasPosition = Vector2.new(0, 9e9)
+        ScrollingFrame_ConsoleOutput.CanvasPosition = Vector2.new(0, ScrollingFrame_ConsoleOutput.AbsoluteCanvasSize.Y)
     end
 end))
 
@@ -1134,7 +1221,7 @@ local function CreateModuleListButton(text, codename, order)
         showmodulelist = codename
     end))
 
-    log("创建模块列表展示按钮: " .. text .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
+    -- log("创建模块列表展示按钮: " .. text .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
 
     return nil
 end
@@ -1184,7 +1271,7 @@ local function CreateSettingListButton(text, codename, order)
         UpdateAreaStats()
     end))
 
-    log("创建展示项展示按钮: " .. text .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
+    -- log("创建展示项展示按钮: " .. text .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
 
     return nil
 end
@@ -1279,7 +1366,7 @@ local function CreateConsoleSettingButton(text, codename, order, defaultstauts, 
         end
     end))
 
-    log("创建控制 " .. text .. " 的按钮: 初始状态为 " .. tostring(defaultstauts) .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
+    -- log("创建控制 " .. text .. " 的按钮: 初始状态为 " .. tostring(defaultstauts) .. ", 代码名称: " .. codename .. ", 排序位置: " .. tostring(order))
 
     return {
         Active = function(active)
@@ -1375,7 +1462,11 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
 
     local success, result1, result2 = pcall(commandlist[mainname].handler, args, rawinput, extra)
     if not success then
-        log("命令执行时发生错误: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        if debug and debug.traceback then
+            log("命令执行异常:" .. debug.traceback(result1, 2) or tostring(result1), "error")
+        else
+            log("命令执行异常: " .. tostring(result1):gsub("^.+:%d+: ", ""), "error")
+        end
         log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "))
         return false, result1
     else 
@@ -1385,7 +1476,13 @@ local function ExecuteCommand(rawinput: string): (boolean, string?)
         log("命令输入: " .. rawinput .. " 参数: " .. table.concat(args, " ") .. " 配置:" .. table.concat(extra, " "))
         
         if not result1 then
-            log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
+            if debug and debug.getinfo then
+                local info = debug.getinfo(2, "nSl")
+                local ctx = info and string.format("%s:%d", info.short_src, info.currentline) or "未知上下文"
+                log(string.format("命令 %s 执行失败 [%s]: %s", cmdname, ctx, tostring(result2 or "未知错误")), "error")
+            else
+                log("命令执行失败: " .. tostring(result2 or "未知错误"), "error")
+            end
             return false, result2
         else 
             log("执行成功: " .. tostring(result2 or "无返回值"))
@@ -1425,7 +1522,7 @@ local function RegisterCommand(name: string, config: {
     end
 
     local aliasesstr = #config.aliases > 0 and table.concat(config.aliases, ", ") or "无别名"
-    log("已注册命令: ;" .. name .. " (" .. aliasesstr .. ")")
+    -- log("已注册命令: ;" .. name .. " (" .. aliasesstr .. ")")
 
     return true
 end
@@ -1483,17 +1580,17 @@ local function UpdateCommandInputHintListDisplay()
 
     table.sort(matches, function(a, b) return a.completename < b.completename end)
 
-    if #matches > 0 then
-        log("------ 匹配结果 ------")
-        log("匹配数量:" .. tostring(#matches))
-        for i, match in ipairs(matches) do
-            log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname))
-        end
-        log("-------------------")
-    end
+    -- if #matches > 0 then
+    --     log("------ 匹配结果 ------")
+    --     log("匹配数量:" .. tostring(#matches))
+    --     for i, match in ipairs(matches) do
+    --         log(string.format("[%d] 补全：%s | 显示：%s", i, match.completename, match.displayname))
+    --     end
+    --     log("-------------------")
+    -- end
 
     if #matches == 0 then
-        log("没有匹配的命令 :(")
+        -- log("没有匹配的命令 :(")
         ScrollingFrame_ConsoleHintList.Visible = false
         return
     elseif ishintpressed then
@@ -1612,7 +1709,7 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
 
     if processingtab then
         processingtab = false
-        log("检测到 Tab 键输入，清理后的输入文本: " .. TextBox_ConsoleInput.Text:gsub("(.*)\t", "%1"))
+        -- log("检测到 Tab 键输入，清理后的输入文本: " .. TextBox_ConsoleInput.Text:gsub("(.*)\t", "%1"))
         RunService.RenderStepped:Wait()
         TextBox_ConsoleInput.Text = TextBox_ConsoleInput.Text:gsub("(.*)\t", "%1")
         TextBox_ConsoleInput.CursorPosition = 201
@@ -1624,12 +1721,12 @@ table.insert(connections, TextBox_ConsoleInput:GetPropertyChangedSignal("Text"):
     
     local nexthint = UpdateCommandInputHintTipDisplay(TextBox_ConsoleInput.Text)
     if nexthint and nexthint ~= "" and (TextBox_ConsoleInput.Text:sub(-1) == "[" or TextBox_ConsoleInput.Text:sub(-1) == "]" or TextBox_ConsoleInput.Text:sub(-1) == " ") then
-        log("更新输入提示: " .. nexthint)
+        -- log("更新输入提示: " .. nexthint)
         TextLabel_ConsoleHintTip.Text = nexthint
         TextLabel_ConsoleHintTip.Size = UDim2.new(0, GetTextWidth(TextLabel_ConsoleHintTip.Text, TextLabel_ConsoleHintTip.TextSize, TextLabel_ConsoleHintTip.Font) + 20, 0, 20)
         TextLabel_ConsoleHintTip.Visible = true
     else
-        log("隐藏输入提示")
+        -- log("隐藏输入提示")
         TextLabel_ConsoleHintTip.Text = ""
         TextLabel_ConsoleHintTip.Visible = false
     end
@@ -1949,41 +2046,41 @@ RegisterCommand("print", {
         if not message or message == "" then return false, "请使用双引号包裹文本，例如 ;print \"Hello World\"" end
             
         if #extra > 0 then
-            local longmatched, messagetype = false, false, nil
+            local longmatched, msgtype = false, false
             for _, part in ipairs(extra) do
                 local longmatch, shortmatch = part:match("^messagetype%s*==%s*(%w+)$"), part:match("^%-([%w+])$")
 
                 if longmatch then 
                     longmatched = true 
-                    messagetype = longmatch
+                    msgtype = longmatch
                 end
 
                 if shortmatch then
                     if longmatched then
                         return false, "同时使用了长格式和短格式的消息类型，请选择一种格式"
                     end
-                    messagetype = shortmatch
+                    msgtype = shortmatch
                 end
                 
                 if not longmatch and not shortmatch then
                     return false, string.format("无法识别 '%s'", part)
                 end
             end
-            if messagetype then
-                if messagetype == "error" or messagetype == "e" then
+            if msgtype then
+                if msgtype == "error" or msgtype == "e" then
                     error(message)
                     return true, "错误消息已发送"
-                elseif messagetype == "warn" or messagetype == "w" then
+                elseif msgtype == "warn" or msgtype == "w" then
                     warn(message)
                     return true, "警告消息已发送"
-                elseif messagetype == "out" or messagetype == "o" then
+                elseif msgtype == "out" or msgtype == "o" then
                     print(message)                        
                     return true, "输出消息已发送 (配置指定)"
-                elseif messagetype == "info" or messagetype == "i" then
+                elseif msgtype == "info" or msgtype == "i" then
                     TestService:Message(message)
                     return true, "信息消息已发送"
                 else
-                    return false, "无效的模式参数: " .. messagetype
+                    return false, "无效的模式参数: " .. msgtype
                 end
             end
         else
@@ -2867,6 +2964,7 @@ table.insert(connections, RunService.Heartbeat:Connect(function()
         math.floor(poscolor.R * 255), math.floor(poscolor.G * 255), math.floor(poscolor.B * 255), postext
     )
     TextLabel_PreformenceInfo.Text = richtext
+    task.wait(1)
 end))
 
 local dragging, dragstartpos, framestartpos = false, nil, nil
@@ -2957,5 +3055,5 @@ table.insert(connections, Version:GetAttributeChangedSignal("Status"):Connect(fu
 end))
 
 print("-------------------------------")
-log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单.")
+log("成功注入 NVI(version-" .. VERSION_PREFIX .. VERSION_NUMBER .. "), 使用 右 Shift 打开菜单, 当前调用栈: " .. debug.traceback())
 ScreenGui.Destroying:Connect(DestroyNvi)
